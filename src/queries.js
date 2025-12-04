@@ -1,6 +1,19 @@
 const db = require('./db');
 
 const queries = {
+  // Live recordings count (status = 0 is LIVE)
+  async getLiveRecordings() {
+    const result = await db.query(`
+      SELECT
+        COUNT(*) as live_count,
+        COUNT(DISTINCT driver_id) as live_drivers,
+        COUNT(DISTINCT track_id) as live_tracks
+      FROM recordings
+      WHERE status = 0 AND deleted_at IS NULL
+    `);
+    return result.rows[0];
+  },
+
   // Overview KPIs
   async getOverviewStats() {
     const result = await db.query(`

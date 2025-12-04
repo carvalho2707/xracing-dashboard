@@ -49,6 +49,21 @@ function timeAgo(dateStr) {
 // Chart instances
 let userGrowthChart, recordingActivityChart, dailyRecordingsChart, geoChart;
 
+// Update live recordings (refreshes more frequently)
+async function updateLiveRecordings() {
+  try {
+    const response = await fetch('/api/live');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+
+    document.getElementById('liveCount').textContent = parseInt(data.live_count) || 0;
+    document.getElementById('liveDrivers').textContent = parseInt(data.live_drivers) || 0;
+    document.getElementById('liveTracks').textContent = parseInt(data.live_tracks) || 0;
+  } catch (error) {
+    console.error('Error fetching live recordings:', error);
+  }
+}
+
 // Fetch all data
 async function fetchData(endpoint) {
   try {
@@ -379,6 +394,7 @@ async function refreshData() {
   document.getElementById('dashboard').classList.add('hidden');
 
   await Promise.all([
+    updateLiveRecordings(),
     updateOverview(),
     updateSocialMetrics(),
     updateMediaStats(),
@@ -401,3 +417,6 @@ document.addEventListener('DOMContentLoaded', refreshData);
 
 // Auto-refresh every 5 minutes
 setInterval(refreshData, 300000);
+
+// Refresh live counter every 30 seconds
+setInterval(updateLiveRecordings, 30000);

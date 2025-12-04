@@ -10,6 +10,16 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname, '../public')));
 
 // API Routes
+app.get('/api/live', async (req, res) => {
+  try {
+    const data = await queries.getLiveRecordings();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching live recordings:', error);
+    res.status(500).json({ error: 'Failed to fetch live recordings' });
+  }
+});
+
 app.get('/api/overview', async (req, res) => {
   try {
     const stats = await queries.getOverviewStats();

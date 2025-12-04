@@ -78,9 +78,26 @@
           </div>
         </div>
         <div class="flex items-center space-x-4">
-          <div class="flex items-center space-x-2">
-            <span class="pulse-dot w-2 h-2 bg-green-500 rounded-full"></span>
-            <span class="text-sm text-racing-muted">Live</span>
+          <!-- Live Recordings Counter -->
+          <div class="flex items-center space-x-3 bg-racing-card border border-racing-border rounded-lg px-4 py-2">
+            <div class="flex items-center space-x-2">
+              <span class="pulse-dot w-3 h-3 bg-red-500 rounded-full"></span>
+              <span class="text-sm text-racing-muted">LIVE NOW</span>
+            </div>
+            <div class="flex items-center space-x-4 border-l border-racing-border pl-3">
+              <div class="text-center">
+                <p id="liveCount" class="text-2xl font-bold text-red-500">-</p>
+                <p class="text-xs text-racing-muted">recordings</p>
+              </div>
+              <div class="text-center">
+                <p id="liveDrivers" class="text-lg font-semibold text-white">-</p>
+                <p class="text-xs text-racing-muted">drivers</p>
+              </div>
+              <div class="text-center">
+                <p id="liveTracks" class="text-lg font-semibold text-white">-</p>
+                <p class="text-xs text-racing-muted">tracks</p>
+              </div>
+            </div>
           </div>
           <button onclick="refreshData()" class="px-4 py-2 bg-racing-card hover:bg-racing-border text-sm rounded-lg transition-colors">
             Refresh
