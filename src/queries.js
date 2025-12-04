@@ -200,6 +200,68 @@ const queries = {
       WHERE deleted_at IS NULL
     `);
     return result.rows[0];
+  },
+
+  // Media/uploads statistics
+  async getMediaStats() {
+    const result = await db.query(`
+      SELECT
+        COUNT(*) as total_media,
+        COUNT(*) FILTER (WHERE type = 0) as total_images,
+        COUNT(*) FILTER (WHERE type = 1) as total_videos,
+        COUNT(*) FILTER (WHERE type = 2) as total_audio,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as media_7d,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') as media_30d
+      FROM media
+    `);
+    return result.rows[0];
+  },
+
+  // Growth rates (WoW and MoM) for users and recordings
+  async getGrowthRates() {
+    const result = await db.query(`
+      WITH weekly_users AS (
+        SELECT
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as this_week,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '14 days' AND created_at < NOW() - INTERVAL '7 days') as last_week
+        FROM users
+      ),
+      monthly_users AS (
+        SELECT
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') as this_month,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '60 days' AND created_at < NOW() - INTERVAL '30 days') as last_month
+        FROM users
+      ),
+      weekly_recordings AS (
+        SELECT
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as this_week,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '14 days' AND created_at < NOW() - INTERVAL '7 days') as last_week
+        FROM recordings
+        WHERE deleted_at IS NULL
+      ),
+      monthly_recordings AS (
+        SELECT
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') as this_month,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '60 days' AND created_at < NOW() - INTERVAL '30 days') as last_month
+        FROM recordings
+        WHERE deleted_at IS NULL
+      )
+      SELECT
+        wu.this_week as users_this_week,
+        wu.last_week as users_last_week,
+        CASE WHEN wu.last_week > 0 THEN ROUND(((wu.this_week - wu.last_week)::numeric / wu.last_week) * 100, 1) ELSE NULL END as users_wow_percent,
+        mu.this_month as users_this_month,
+        mu.last_month as users_last_month,
+        CASE WHEN mu.last_month > 0 THEN ROUND(((mu.this_month - mu.last_month)::numeric / mu.last_month) * 100, 1) ELSE NULL END as users_mom_percent,
+        wr.this_week as recordings_this_week,
+        wr.last_week as recordings_last_week,
+        CASE WHEN wr.last_week > 0 THEN ROUND(((wr.this_week - wr.last_week)::numeric / wr.last_week) * 100, 1) ELSE NULL END as recordings_wow_percent,
+        mr.this_month as recordings_this_month,
+        mr.last_month as recordings_last_month,
+        CASE WHEN mr.last_month > 0 THEN ROUND(((mr.this_month - mr.last_month)::numeric / mr.last_month) * 100, 1) ELSE NULL END as recordings_mom_percent
+      FROM weekly_users wu, monthly_users mu, weekly_recordings wr, monthly_recordings mr
+    `);
+    return result.rows[0];
   }
 };
 

@@ -98,6 +98,40 @@
 
     <!-- Dashboard Content -->
     <div id="dashboard" class="hidden space-y-8">
+      <!-- Growth Rates Section -->
+      <div class="glass-card rounded-xl p-6 glow-red">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-bold text-white">Growth Momentum</h2>
+          <span class="text-xs text-racing-muted">Updated in real-time</span>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <!-- Users WoW -->
+          <div class="text-center">
+            <p class="text-racing-muted text-sm mb-1">Users WoW</p>
+            <p id="usersWow" class="text-3xl font-bold text-white">-</p>
+            <p id="usersWowDetail" class="text-xs text-racing-muted mt-1">- vs -</p>
+          </div>
+          <!-- Users MoM -->
+          <div class="text-center">
+            <p class="text-racing-muted text-sm mb-1">Users MoM</p>
+            <p id="usersMom" class="text-3xl font-bold text-white">-</p>
+            <p id="usersMomDetail" class="text-xs text-racing-muted mt-1">- vs -</p>
+          </div>
+          <!-- Recordings WoW -->
+          <div class="text-center">
+            <p class="text-racing-muted text-sm mb-1">Recordings WoW</p>
+            <p id="recordingsWow" class="text-3xl font-bold text-white">-</p>
+            <p id="recordingsWowDetail" class="text-xs text-racing-muted mt-1">- vs -</p>
+          </div>
+          <!-- Recordings MoM -->
+          <div class="text-center">
+            <p class="text-racing-muted text-sm mb-1">Recordings MoM</p>
+            <p id="recordingsMom" class="text-3xl font-bold text-white">-</p>
+            <p id="recordingsMomDetail" class="text-xs text-racing-muted mt-1">- vs -</p>
+          </div>
+        </div>
+      </div>
+
       <!-- KPI Cards Row -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="stat-card rounded-xl p-5">
@@ -162,7 +196,7 @@
       </div>
 
       <!-- Secondary Stats -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div class="glass-card rounded-xl p-4 text-center">
           <p class="text-racing-muted text-sm">Total Distance</p>
           <p id="totalDistance" class="text-2xl font-semibold text-white mt-1">-</p>
@@ -170,6 +204,11 @@
         <div class="glass-card rounded-xl p-4 text-center">
           <p class="text-racing-muted text-sm">Recording Time</p>
           <p id="totalTime" class="text-2xl font-semibold text-white mt-1">-</p>
+        </div>
+        <div class="glass-card rounded-xl p-4 text-center">
+          <p class="text-racing-muted text-sm">Uploaded Files</p>
+          <p id="totalMedia" class="text-2xl font-semibold text-white mt-1">-</p>
+          <p id="mediaBreakdown" class="text-xs text-racing-muted mt-1">- images, - videos</p>
         </div>
         <div class="glass-card rounded-xl p-4 text-center">
           <p class="text-racing-muted text-sm">Total Likes</p>

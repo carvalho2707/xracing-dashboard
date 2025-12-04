@@ -143,6 +143,26 @@ app.get('/api/events-stats', async (req, res) => {
   }
 });
 
+app.get('/api/growth-rates', async (req, res) => {
+  try {
+    const data = await queries.getGrowthRates();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching growth rates:', error);
+    res.status(500).json({ error: 'Failed to fetch growth rates' });
+  }
+});
+
+app.get('/api/media-stats', async (req, res) => {
+  try {
+    const data = await queries.getMediaStats();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching media stats:', error);
+    res.status(500).json({ error: 'Failed to fetch media stats' });
+  }
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

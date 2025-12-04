@@ -85,6 +85,56 @@ async function updateSocialMetrics() {
   document.getElementById('totalComments').textContent = formatNumber(parseInt(data.total_comments));
 }
 
+// Update media stats
+async function updateMediaStats() {
+  const data = await fetchData('media-stats');
+  if (!data) return;
+
+  document.getElementById('totalMedia').textContent = formatNumber(parseInt(data.total_media));
+  const images = parseInt(data.total_images) || 0;
+  const videos = parseInt(data.total_videos) || 0;
+  document.getElementById('mediaBreakdown').textContent = `${formatNumber(images)} images, ${formatNumber(videos)} videos`;
+}
+
+// Format growth percentage with color
+function formatGrowth(percent) {
+  if (percent === null || percent === undefined) return { text: 'N/A', class: 'text-racing-muted' };
+  const value = parseFloat(percent);
+  if (value > 0) return { text: `+${value}%`, class: 'text-green-400' };
+  if (value < 0) return { text: `${value}%`, class: 'text-red-400' };
+  return { text: '0%', class: 'text-racing-muted' };
+}
+
+// Update growth rates
+async function updateGrowthRates() {
+  const data = await fetchData('growth-rates');
+  if (!data) return;
+
+  // Users WoW
+  const usersWow = formatGrowth(data.users_wow_percent);
+  document.getElementById('usersWow').textContent = usersWow.text;
+  document.getElementById('usersWow').className = `text-3xl font-bold ${usersWow.class}`;
+  document.getElementById('usersWowDetail').textContent = `${data.users_this_week || 0} vs ${data.users_last_week || 0}`;
+
+  // Users MoM
+  const usersMom = formatGrowth(data.users_mom_percent);
+  document.getElementById('usersMom').textContent = usersMom.text;
+  document.getElementById('usersMom').className = `text-3xl font-bold ${usersMom.class}`;
+  document.getElementById('usersMomDetail').textContent = `${data.users_this_month || 0} vs ${data.users_last_month || 0}`;
+
+  // Recordings WoW
+  const recordingsWow = formatGrowth(data.recordings_wow_percent);
+  document.getElementById('recordingsWow').textContent = recordingsWow.text;
+  document.getElementById('recordingsWow').className = `text-3xl font-bold ${recordingsWow.class}`;
+  document.getElementById('recordingsWowDetail').textContent = `${data.recordings_this_week || 0} vs ${data.recordings_last_week || 0}`;
+
+  // Recordings MoM
+  const recordingsMom = formatGrowth(data.recordings_mom_percent);
+  document.getElementById('recordingsMom').textContent = recordingsMom.text;
+  document.getElementById('recordingsMom').className = `text-3xl font-bold ${recordingsMom.class}`;
+  document.getElementById('recordingsMomDetail').textContent = `${data.recordings_this_month || 0} vs ${data.recordings_last_month || 0}`;
+}
+
 // Create user growth chart
 async function createUserGrowthChart() {
   const data = await fetchData('user-growth');
@@ -331,6 +381,8 @@ async function refreshData() {
   await Promise.all([
     updateOverview(),
     updateSocialMetrics(),
+    updateMediaStats(),
+    updateGrowthRates(),
     createUserGrowthChart(),
     createRecordingActivityChart(),
     createDailyRecordingsChart(),
