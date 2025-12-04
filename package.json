@@ -1,0 +1,21 @@
+{
+  "name": "xracing-dashboard",
+  "version": "1.0.0",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": ["racing", "dashboard", "kpi"],
+  "author": "",
+  "license": "ISC",
+  "description": "XRacing8 KPI Dashboard",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "pg": "^8.16.3"
+  }
+}
