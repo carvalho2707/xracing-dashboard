@@ -1,6 +1,3 @@
-// API base URL - use localhost:3000 if running from IDE preview
-const API_BASE = window.location.port === '3000' ? '' : 'http://localhost:3000';
-
 // Chart.js default config
 Chart.defaults.color = '#8B949E';
 Chart.defaults.borderColor = 'rgba(48, 54, 61, 0.5)';
@@ -55,7 +52,7 @@ let totalUsersChart, newUsersChart, recordingActivityChart, dailyRecordingsChart
 // Update live recordings (refreshes more frequently)
 async function updateLiveRecordings() {
   try {
-    const response = await fetch(`${API_BASE}/api/live`);
+    const response = await fetch('/api/live');
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
 
@@ -70,7 +67,7 @@ async function updateLiveRecordings() {
 // Fetch all data
 async function fetchData(endpoint) {
   try {
-    const response = await fetch(`${API_BASE}/api/${endpoint}`);
+    const response = await fetch(`/api/${endpoint}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return await response.json();
   } catch (error) {
