@@ -47,7 +47,7 @@ function timeAgo(dateStr) {
 }
 
 // Chart instances
-let userGrowthChart, recordingActivityChart, dailyRecordingsChart, geoChart;
+let totalUsersChart, newUsersChart, recordingActivityChart, dailyRecordingsChart, geoChart, engagementChart;
 
 // Update live recordings (refreshes more frequently)
 async function updateLiveRecordings() {
@@ -150,28 +150,66 @@ async function updateGrowthRates() {
   document.getElementById('recordingsMomDetail').textContent = `${data.recordings_this_month || 0} vs ${data.recordings_last_month || 0}`;
 }
 
-// Create user growth chart
-async function createUserGrowthChart() {
-  const data = await fetchData('user-growth');
+// Create total users chart (cumulative)
+async function createTotalUsersChart() {
+  const data = await fetchData('cumulative-user-growth');
   if (!data || data.length === 0) return;
 
-  const ctx = document.getElementById('userGrowthChart').getContext('2d');
+  const ctx = document.getElementById('totalUsersChart').getContext('2d');
 
-  if (userGrowthChart) userGrowthChart.destroy();
+  if (totalUsersChart) totalUsersChart.destroy();
 
-  userGrowthChart = new Chart(ctx, {
+  totalUsersChart = new Chart(ctx, {
     type: 'line',
     data: {
       labels: data.map(d => formatMonth(d.month)),
       datasets: [{
-        label: 'New Users',
-        data: data.map(d => parseInt(d.count)),
+        label: 'Total Users',
+        data: data.map(d => parseInt(d.cumulative_total)),
         borderColor: '#3B82F6',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         fill: true,
         tension: 0.4,
         pointRadius: 4,
         pointHoverRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          grid: { color: 'rgba(48, 54, 61, 0.3)' }
+        },
+        x: {
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+// Create new users per month chart
+async function createNewUsersChart() {
+  const data = await fetchData('user-growth');
+  if (!data || data.length === 0) return;
+
+  const ctx = document.getElementById('newUsersChart').getContext('2d');
+
+  if (newUsersChart) newUsersChart.destroy();
+
+  newUsersChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => formatMonth(d.month)),
+      datasets: [{
+        label: 'New Users',
+        data: data.map(d => parseInt(d.count)),
+        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+        borderRadius: 4
       }]
     },
     options: {
@@ -316,6 +354,74 @@ async function createGeoChart() {
   });
 }
 
+// Create user engagement chart
+async function createEngagementChart() {
+  const data = await fetchData('user-engagement');
+  if (!data) return;
+
+  // Update KPI values
+  const totalUsers = parseInt(data.total_users) || 0;
+  const activeUsers = parseInt(data.active_users) || 0;
+  const activePercent = totalUsers > 0 ? ((activeUsers / totalUsers) * 100).toFixed(1) : 0;
+  document.getElementById('activeUsersPercent').textContent = `${activePercent}%`;
+  document.getElementById('avgRecordingsActive').textContent = data.avg_recordings_active_users || '0';
+
+  const ctx = document.getElementById('engagementChart').getContext('2d');
+
+  if (engagementChart) engagementChart.destroy();
+
+  const labels = ['0', '1', '2-5', '6-20', '21-50', '51+'];
+  const values = [
+    parseInt(data.users_0_recordings) || 0,
+    parseInt(data.users_1_recording) || 0,
+    parseInt(data.users_2_5_recordings) || 0,
+    parseInt(data.users_6_20_recordings) || 0,
+    parseInt(data.users_21_50_recordings) || 0,
+    parseInt(data.users_51_plus_recordings) || 0
+  ];
+
+  engagementChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Users',
+        data: values,
+        backgroundColor: [
+          'rgba(107, 114, 128, 0.8)',
+          'rgba(59, 130, 246, 0.8)',
+          'rgba(16, 185, 129, 0.8)',
+          'rgba(245, 158, 11, 0.8)',
+          'rgba(239, 68, 68, 0.8)',
+          'rgba(139, 92, 246, 0.8)'
+        ],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(48, 54, 61, 0.3)' }
+        },
+        x: {
+          grid: { display: false },
+          title: {
+            display: true,
+            text: 'Recordings',
+            color: '#8B949E'
+          }
+        }
+      }
+    }
+  });
+}
+
 // Update top tracks table
 async function updateTopTracks() {
   const data = await fetchData('top-tracks');
@@ -399,10 +505,12 @@ async function refreshData() {
     updateSocialMetrics(),
     updateMediaStats(),
     updateGrowthRates(),
-    createUserGrowthChart(),
+    createTotalUsersChart(),
+    createNewUsersChart(),
     createRecordingActivityChart(),
     createDailyRecordingsChart(),
     createGeoChart(),
+    createEngagementChart(),
     updateTopTracks(),
     updateTopDrivers(),
     updateRecentActivity()

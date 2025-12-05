@@ -236,16 +236,27 @@
         </div>
       </div>
 
-      <!-- Charts Row -->
+      <!-- User Charts Row -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- User Growth Chart -->
+        <!-- Total Users Chart -->
         <div class="glass-card rounded-xl p-6">
-          <h3 class="text-lg font-semibold text-white mb-4">User Growth</h3>
+          <h3 class="text-lg font-semibold text-white mb-4">Total Users</h3>
           <div class="chart-container">
-            <canvas id="userGrowthChart"></canvas>
+            <canvas id="totalUsersChart"></canvas>
           </div>
         </div>
 
+        <!-- New Users per Month Chart -->
+        <div class="glass-card rounded-xl p-6">
+          <h3 class="text-lg font-semibold text-white mb-4">New Users per Month</h3>
+          <div class="chart-container">
+            <canvas id="newUsersChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recording Charts Row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Recording Activity Chart -->
         <div class="glass-card rounded-xl p-6">
           <h3 class="text-lg font-semibold text-white mb-4">Recording Activity</h3>
@@ -253,15 +264,35 @@
             <canvas id="recordingActivityChart"></canvas>
           </div>
         </div>
-      </div>
 
-      <!-- More Charts -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Daily Recordings -->
         <div class="glass-card rounded-xl p-6">
           <h3 class="text-lg font-semibold text-white mb-4">Daily Recordings (Last 30 Days)</h3>
           <div class="chart-container">
             <canvas id="dailyRecordingsChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Engagement & Geographic Row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- User Engagement -->
+        <div class="glass-card rounded-xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-white">User Engagement</h3>
+            <div class="flex items-center space-x-4 text-sm">
+              <div class="text-center">
+                <span class="text-racing-muted">Active Users</span>
+                <p id="activeUsersPercent" class="text-white font-semibold">-</p>
+              </div>
+              <div class="text-center">
+                <span class="text-racing-muted">Avg Recordings</span>
+                <p id="avgRecordingsActive" class="text-white font-semibold">-</p>
+              </div>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="engagementChart"></canvas>
           </div>
         </div>
 

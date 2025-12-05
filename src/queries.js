@@ -31,7 +31,7 @@ const queries = {
     return result.rows[0];
   },
 
-  // User growth over time (last 12 months)
+  // New users per month (last 12 months)
   async getUserGrowth() {
     const result = await db.query(`
       SELECT
@@ -41,6 +41,32 @@ const queries = {
       WHERE created_at >= NOW() - INTERVAL '12 months'
       GROUP BY DATE_TRUNC('month', created_at)
       ORDER BY month
+    `);
+    return result.rows;
+  },
+
+  // Cumulative total users over time (last 12 months)
+  async getCumulativeUserGrowth() {
+    const result = await db.query(`
+      WITH monthly_counts AS (
+        SELECT
+          DATE_TRUNC('month', created_at) as month,
+          COUNT(*) as new_users
+        FROM users
+        WHERE created_at >= NOW() - INTERVAL '12 months'
+        GROUP BY DATE_TRUNC('month', created_at)
+      ),
+      users_before AS (
+        SELECT COUNT(*) as count
+        FROM users
+        WHERE created_at < DATE_TRUNC('month', NOW() - INTERVAL '11 months')
+      )
+      SELECT
+        mc.month,
+        mc.new_users,
+        ub.count + SUM(mc.new_users) OVER (ORDER BY mc.month) as cumulative_total
+      FROM monthly_counts mc, users_before ub
+      ORDER BY mc.month
     `);
     return result.rows;
   },
@@ -226,6 +252,32 @@ const queries = {
         COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as media_7d,
         COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') as media_30d
       FROM media
+    `);
+    return result.rows[0];
+  },
+
+  // User engagement metrics - recordings per user distribution
+  async getUserEngagement() {
+    const result = await db.query(`
+      WITH user_recording_counts AS (
+        SELECT
+          u.id,
+          COALESCE(us.total_recordings, 0) as recording_count
+        FROM users u
+        LEFT JOIN user_stats us ON u.id = us.user_id
+      )
+      SELECT
+        COUNT(*) as total_users,
+        COUNT(*) FILTER (WHERE recording_count > 0) as active_users,
+        COUNT(*) FILTER (WHERE recording_count = 0) as users_0_recordings,
+        COUNT(*) FILTER (WHERE recording_count = 1) as users_1_recording,
+        COUNT(*) FILTER (WHERE recording_count BETWEEN 2 AND 5) as users_2_5_recordings,
+        COUNT(*) FILTER (WHERE recording_count BETWEEN 6 AND 20) as users_6_20_recordings,
+        COUNT(*) FILTER (WHERE recording_count BETWEEN 21 AND 50) as users_21_50_recordings,
+        COUNT(*) FILTER (WHERE recording_count > 50) as users_51_plus_recordings,
+        ROUND(AVG(recording_count)::numeric, 1) as avg_recordings_all_users,
+        ROUND(AVG(recording_count) FILTER (WHERE recording_count > 0)::numeric, 1) as avg_recordings_active_users
+      FROM user_recording_counts
     `);
     return result.rows[0];
   },

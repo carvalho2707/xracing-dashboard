@@ -40,6 +40,16 @@ app.get('/api/user-growth', async (req, res) => {
   }
 });
 
+app.get('/api/cumulative-user-growth', async (req, res) => {
+  try {
+    const data = await queries.getCumulativeUserGrowth();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching cumulative user growth:', error);
+    res.status(500).json({ error: 'Failed to fetch cumulative user growth' });
+  }
+});
+
 app.get('/api/recording-activity', async (req, res) => {
   try {
     const data = await queries.getRecordingActivity();
@@ -160,6 +170,16 @@ app.get('/api/growth-rates', async (req, res) => {
   } catch (error) {
     console.error('Error fetching growth rates:', error);
     res.status(500).json({ error: 'Failed to fetch growth rates' });
+  }
+});
+
+app.get('/api/user-engagement', async (req, res) => {
+  try {
+    const data = await queries.getUserEngagement();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching user engagement:', error);
+    res.status(500).json({ error: 'Failed to fetch user engagement' });
   }
 });
 
