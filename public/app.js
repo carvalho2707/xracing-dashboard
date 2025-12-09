@@ -485,7 +485,7 @@ async function updateRecentActivity() {
           <p class="text-white text-sm">
             <span class="font-medium">${activity.username || 'Anonymous'}</span>
             <span class="text-racing-muted"> recorded at </span>
-            <span class="font-medium">${activity.track_name || 'Unknown track'}</span>
+            <span class="font-medium">${activity.track_name || [activity.location_city, activity.location_country].filter(Boolean).join(', ') || 'Unknown location'}</span>
           </p>
         </div>
       </div>
