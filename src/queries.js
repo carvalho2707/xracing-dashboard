@@ -202,8 +202,8 @@ const queries = {
         r.id,
         u.username,
         t.name as track_name,
-        t.location_city,
-        t.location_country,
+        r.location_city,
+        r.location_country,
         r.created_at
       FROM recordings r
       JOIN users u ON r.driver_id = u.id
