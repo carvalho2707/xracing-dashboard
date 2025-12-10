@@ -193,6 +193,16 @@ app.get('/api/media-stats', async (req, res) => {
   }
 });
 
+app.get('/api/heatmap-locations', async (req, res) => {
+  try {
+    const data = await queries.getHeatmapLocations();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching heatmap locations:', error);
+    res.status(500).json({ error: 'Failed to fetch heatmap locations' });
+  }
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

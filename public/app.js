@@ -49,6 +49,10 @@ function timeAgo(dateStr) {
 // Chart instances
 let totalUsersChart, newUsersChart, recordingActivityChart, dailyRecordingsChart, geoChart, engagementChart;
 
+// Map instances
+let heatmapMap = null;
+let heatmapLayer = null;
+
 // Update live recordings (refreshes more frequently)
 async function updateLiveRecordings() {
   try {
@@ -494,6 +498,62 @@ async function updateRecentActivity() {
   `).join('');
 }
 
+// Create/update heatmap
+async function createHeatmap() {
+  const data = await fetchData('heatmap-locations');
+  if (!data || data.length === 0) {
+    document.getElementById('heatmapCount').textContent = '0 locations';
+    return;
+  }
+
+  document.getElementById('heatmapCount').textContent = `${formatNumber(data.length)} locations`;
+
+  // Convert to heatmap format: [lat, lng, intensity]
+  const heatData = data.map(d => [parseFloat(d.lat), parseFloat(d.lng), 1]);
+
+  // Initialize map if not already done
+  if (!heatmapMap) {
+    heatmapMap = L.map('heatmap', {
+      zoomControl: true,
+      scrollWheelZoom: true
+    }).setView([40, 0], 2);
+
+    // Dark tile layer
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(heatmapMap);
+  }
+
+  // Remove existing heatmap layer if present
+  if (heatmapLayer) {
+    heatmapMap.removeLayer(heatmapLayer);
+  }
+
+  // Add heatmap layer
+  heatmapLayer = L.heatLayer(heatData, {
+    radius: 20,
+    blur: 15,
+    maxZoom: 10,
+    max: 1,
+    gradient: {
+      0.0: '#0D1117',
+      0.2: '#3B82F6',
+      0.4: '#10B981',
+      0.6: '#F59E0B',
+      0.8: '#E53935',
+      1.0: '#FFFFFF'
+    }
+  }).addTo(heatmapMap);
+
+  // Fit bounds to data if we have points
+  if (heatData.length > 0) {
+    const bounds = L.latLngBounds(heatData.map(d => [d[0], d[1]]));
+    heatmapMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
+  }
+}
+
 // Refresh all data
 async function refreshData() {
   document.getElementById('loading').classList.remove('hidden');
@@ -511,6 +571,7 @@ async function refreshData() {
     createDailyRecordingsChart(),
     createGeoChart(),
     createEngagementChart(),
+    createHeatmap(),
     updateTopTracks(),
     updateTopDrivers(),
     updateRecentActivity()

@@ -329,6 +329,22 @@ const queries = {
       FROM weekly_users wu, monthly_users mu, weekly_recordings wr, monthly_recordings mr
     `);
     return result.rows[0];
+  },
+
+  // Heatmap locations - one point per recording
+  async getHeatmapLocations() {
+    const result = await db.query(`
+      SELECT DISTINCT ON (r.id)
+        rdp.latitude as lat,
+        rdp.longitude as lng
+      FROM recordings r
+      JOIN recording_data_points rdp ON rdp.recording_id = r.id
+      WHERE r.deleted_at IS NULL
+        AND rdp.latitude != 0
+        AND rdp.longitude != 0
+      ORDER BY r.id, rdp.timestamp ASC
+    `);
+    return result.rows;
   }
 };
 
