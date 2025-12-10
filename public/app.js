@@ -571,7 +571,6 @@ async function refreshData() {
     createDailyRecordingsChart(),
     createGeoChart(),
     createEngagementChart(),
-    createHeatmap(),
     updateTopTracks(),
     updateTopDrivers(),
     updateRecentActivity()
@@ -579,6 +578,9 @@ async function refreshData() {
 
   document.getElementById('loading').classList.add('hidden');
   document.getElementById('dashboard').classList.remove('hidden');
+
+  // Create heatmap after dashboard is visible (needs container dimensions)
+  await createHeatmap();
 }
 
 // Initialize
