@@ -498,6 +498,34 @@ async function updateRecentActivity() {
   `).join('');
 }
 
+// Toggle heatmap fullscreen
+function toggleHeatmapFullscreen() {
+  const card = document.getElementById('heatmapCard');
+  const expandIcon = document.getElementById('heatmapExpandIcon');
+  const shrinkIcon = document.getElementById('heatmapShrinkIcon');
+
+  card.classList.toggle('fullscreen');
+  expandIcon.classList.toggle('hidden');
+  shrinkIcon.classList.toggle('hidden');
+
+  // Invalidate map size after transition
+  setTimeout(() => {
+    if (heatmapMap) {
+      heatmapMap.invalidateSize();
+    }
+  }, 100);
+}
+
+// Close fullscreen on Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const card = document.getElementById('heatmapCard');
+    if (card && card.classList.contains('fullscreen')) {
+      toggleHeatmapFullscreen();
+    }
+  }
+});
+
 // Create/update heatmap
 async function createHeatmap() {
   const data = await fetchData('heatmap-locations');
