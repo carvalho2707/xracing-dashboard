@@ -215,6 +215,42 @@ const queries = {
     return result.rows;
   },
 
+  // Recent users
+  async getRecentUsers(limit = 10) {
+    const result = await db.query(`
+      SELECT
+        u.id,
+        u.username,
+        u.first_name,
+        u.last_name,
+        u.location_country,
+        u.created_at
+      FROM users u
+      ORDER BY u.created_at DESC
+      LIMIT $1
+    `, [limit]);
+    return result.rows;
+  },
+
+  // Recent tracks
+  async getRecentTracks(limit = 10) {
+    const result = await db.query(`
+      SELECT
+        t.id,
+        t.name,
+        t.location_city,
+        t.location_country,
+        t.type,
+        u.username as created_by_username,
+        t.created_at
+      FROM tracks t
+      JOIN users u ON t.created_by = u.id
+      ORDER BY t.created_at DESC
+      LIMIT $1
+    `, [limit]);
+    return result.rows;
+  },
+
   // Average speeds and lap times
   async getPerformanceMetrics() {
     const result = await db.query(`

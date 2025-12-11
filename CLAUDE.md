@@ -51,3 +51,6 @@ The dashboard queries these main tables:
 - `media` - Uploaded images/videos
 
 Recording status values: `0` = LIVE, other values = completed states.
+
+## Main app
+The main app is located in /Users/tiago/Documents/personal/xracing/backend/

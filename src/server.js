@@ -143,6 +143,28 @@ app.get('/api/recent-activity', async (req, res) => {
   }
 });
 
+app.get('/api/recent-users', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const data = await queries.getRecentUsers(limit);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching recent users:', error);
+    res.status(500).json({ error: 'Failed to fetch recent users' });
+  }
+});
+
+app.get('/api/recent-tracks', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const data = await queries.getRecentTracks(limit);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching recent tracks:', error);
+    res.status(500).json({ error: 'Failed to fetch recent tracks' });
+  }
+});
+
 app.get('/api/performance', async (req, res) => {
   try {
     const data = await queries.getPerformanceMetrics();
