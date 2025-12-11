@@ -223,7 +223,6 @@ const queries = {
         u.username,
         u.first_name,
         u.last_name,
-        u.location_country,
         u.created_at
       FROM users u
       ORDER BY u.created_at DESC
@@ -244,7 +243,7 @@ const queries = {
         u.username as created_by_username,
         t.created_at
       FROM tracks t
-      JOIN users u ON t.created_by = u.id
+      LEFT JOIN users u ON t.creator_id = u.id
       ORDER BY t.created_at DESC
       LIMIT $1
     `, [limit]);

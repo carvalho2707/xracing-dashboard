@@ -516,7 +516,6 @@ async function updateRecentUsers() {
           <p class="text-white text-sm font-medium">
             ${user.username || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Anonymous'}
           </p>
-          ${user.location_country ? `<p class="text-racing-muted text-xs">${user.location_country}</p>` : ''}
         </div>
       </div>
       <span class="text-racing-muted text-xs">${timeAgo(user.created_at)}</span>
