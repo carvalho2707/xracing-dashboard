@@ -550,6 +550,131 @@ async function updateRecentTracks() {
   `).join('');
 }
 
+// Update views stats
+async function updateViewsStats() {
+  const data = await fetchData('views-stats');
+  if (!data) return;
+
+  document.getElementById('totalRecordingViews').textContent = formatNumber(parseInt(data.recording_total_views) || 0);
+  document.getElementById('totalRecordingLiveViews').textContent = formatNumber(parseInt(data.recording_live_views) || 0);
+  document.getElementById('totalEventViews').textContent = formatNumber(parseInt(data.event_total_views) || 0);
+  document.getElementById('totalEventLiveViews').textContent = formatNumber(parseInt(data.event_live_views) || 0);
+}
+
+// Update top viewed recordings table
+async function updateTopViewedRecordings() {
+  const data = await fetchData('top-viewed-recordings');
+  if (!data) return;
+
+  const tbody = document.getElementById('topViewedRecordingsTable');
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-racing-muted">No viewed recordings yet</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map((rec, i) => `
+    <tr class="border-b border-racing-border/50 hover:bg-racing-border/20">
+      <td class="py-3 px-2 text-racing-muted">${i + 1}</td>
+      <td class="py-3 px-2">
+        <span class="text-white font-medium">
+          ${rec.driver_username || `${rec.driver_first_name || ''} ${rec.driver_last_name || ''}`.trim() || 'Anonymous'}
+        </span>
+      </td>
+      <td class="py-3 px-2 text-racing-muted text-sm">
+        ${rec.track_name || [rec.location_city, rec.location_country].filter(Boolean).join(', ') || '-'}
+      </td>
+      <td class="py-3 px-2 text-right text-cyan-400 font-medium">${formatNumber(parseInt(rec.total_views))}</td>
+      <td class="py-3 px-2 text-right text-racing-muted text-sm">
+        <span title="Likes">${formatNumber(parseInt(rec.like_count))}</span> /
+        <span title="Comments">${formatNumber(parseInt(rec.comment_count))}</span>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Update top viewed events table
+async function updateTopViewedEvents() {
+  const data = await fetchData('top-viewed-events');
+  if (!data) return;
+
+  const tbody = document.getElementById('topViewedEventsTable');
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-racing-muted">No viewed events yet</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map((event, i) => `
+    <tr class="border-b border-racing-border/50 hover:bg-racing-border/20">
+      <td class="py-3 px-2 text-racing-muted">${i + 1}</td>
+      <td class="py-3 px-2">
+        <span class="text-white font-medium">${event.track_name || 'Unknown'}</span>
+      </td>
+      <td class="py-3 px-2 text-racing-muted text-sm">
+        ${[event.location_city, event.location_country].filter(Boolean).join(', ') || '-'}
+      </td>
+      <td class="py-3 px-2 text-right text-yellow-400 font-medium">${formatNumber(parseInt(event.total_views))}</td>
+      <td class="py-3 px-2 text-right text-racing-muted">${formatNumber(parseInt(event.driver_count))}</td>
+    </tr>
+  `).join('');
+}
+
+// Update top live viewed events table
+async function updateTopLiveViewedEvents() {
+  const data = await fetchData('top-live-viewed-events');
+  if (!data) return;
+
+  const tbody = document.getElementById('topLiveViewedEventsTable');
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-racing-muted">No live viewed events yet</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map((event, i) => `
+    <tr class="border-b border-racing-border/50 hover:bg-racing-border/20">
+      <td class="py-3 px-2 text-racing-muted">${i + 1}</td>
+      <td class="py-3 px-2">
+        <span class="text-white font-medium">${event.track_name || 'Unknown'}</span>
+      </td>
+      <td class="py-3 px-2 text-racing-muted text-sm">
+        ${[event.location_city, event.location_country].filter(Boolean).join(', ') || '-'}
+      </td>
+      <td class="py-3 px-2 text-right text-red-400 font-medium">${formatNumber(parseInt(event.live_views))}</td>
+      <td class="py-3 px-2 text-right text-racing-muted">${formatNumber(parseInt(event.recording_count))}</td>
+    </tr>
+  `).join('');
+}
+
+// Update top live viewed recordings table (noTrack)
+async function updateTopLiveViewedRecordings() {
+  const data = await fetchData('top-live-viewed-recordings');
+  if (!data) return;
+
+  const tbody = document.getElementById('topLiveViewedRecordingsTable');
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-racing-muted">No live viewed recordings yet</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map((rec, i) => `
+    <tr class="border-b border-racing-border/50 hover:bg-racing-border/20">
+      <td class="py-3 px-2 text-racing-muted">${i + 1}</td>
+      <td class="py-3 px-2">
+        <span class="text-white font-medium">
+          ${rec.driver_username || `${rec.driver_first_name || ''} ${rec.driver_last_name || ''}`.trim() || 'Anonymous'}
+        </span>
+      </td>
+      <td class="py-3 px-2 text-racing-muted text-sm">
+        ${[rec.location_city, rec.location_country].filter(Boolean).join(', ') || '-'}
+      </td>
+      <td class="py-3 px-2 text-right text-red-400 font-medium">${formatNumber(parseInt(rec.live_views))}</td>
+      <td class="py-3 px-2 text-right text-racing-muted text-sm">
+        <span title="Likes">${formatNumber(parseInt(rec.like_count))}</span> /
+        <span title="Comments">${formatNumber(parseInt(rec.comment_count))}</span>
+      </td>
+    </tr>
+  `).join('');
+}
+
 // Toggle heatmap fullscreen
 function toggleHeatmapFullscreen() {
   const card = document.getElementById('heatmapCard');
@@ -644,6 +769,7 @@ async function refreshData() {
     updateOverview(),
     updateSocialMetrics(),
     updateMediaStats(),
+    updateViewsStats(),
     updateGrowthRates(),
     createTotalUsersChart(),
     createNewUsersChart(),
@@ -653,6 +779,10 @@ async function refreshData() {
     createEngagementChart(),
     updateTopTracks(),
     updateTopDrivers(),
+    updateTopViewedRecordings(),
+    updateTopViewedEvents(),
+    updateTopLiveViewedEvents(),
+    updateTopLiveViewedRecordings(),
     updateRecentActivity(),
     updateRecentUsers(),
     updateRecentTracks()

@@ -380,6 +380,141 @@ const queries = {
       ORDER BY r.id, rdp.timestamp ASC
     `);
     return result.rows;
+  },
+
+  // Views summary stats
+  async getViewsStats() {
+    const result = await db.query(`
+      SELECT
+        COALESCE(SUM(r.total_views), 0) as total_recording_views,
+        COALESCE(SUM(r.live_views), 0) as total_recording_live_views,
+        COALESCE(SUM(e.total_views), 0) as total_event_views,
+        COALESCE(SUM(e.live_views), 0) as total_event_live_views
+      FROM recordings r
+      FULL OUTER JOIN events e ON false
+      WHERE r.deleted_at IS NULL OR e.deleted_at IS NULL
+    `);
+    // Need separate queries for accurate results
+    const recordingsResult = await db.query(`
+      SELECT
+        COALESCE(SUM(total_views), 0) as total_views,
+        COALESCE(SUM(live_views), 0) as live_views
+      FROM recordings
+      WHERE deleted_at IS NULL
+    `);
+    const eventsResult = await db.query(`
+      SELECT
+        COALESCE(SUM(total_views), 0) as total_views,
+        COALESCE(SUM(live_views), 0) as live_views
+      FROM events
+      WHERE deleted_at IS NULL
+    `);
+    return {
+      recording_total_views: recordingsResult.rows[0].total_views,
+      recording_live_views: recordingsResult.rows[0].live_views,
+      event_total_views: eventsResult.rows[0].total_views,
+      event_live_views: eventsResult.rows[0].live_views
+    };
+  },
+
+  // Top recordings by total views
+  async getTopViewedRecordings(limit = 10) {
+    const result = await db.query(`
+      SELECT
+        r.id,
+        r.total_views,
+        r.live_views,
+        r.like_count,
+        r.comment_count,
+        u.username as driver_username,
+        u.first_name as driver_first_name,
+        u.last_name as driver_last_name,
+        t.name as track_name,
+        r.location_city,
+        r.location_country,
+        r.created_at
+      FROM recordings r
+      JOIN users u ON r.driver_id = u.id
+      LEFT JOIN tracks t ON r.track_id = t.id
+      WHERE r.deleted_at IS NULL AND r.total_views > 0
+      ORDER BY r.total_views DESC
+      LIMIT $1
+    `, [limit]);
+    return result.rows;
+  },
+
+  // Top recordings by live views (noTrack recordings)
+  async getTopLiveViewedRecordings(limit = 10) {
+    const result = await db.query(`
+      SELECT
+        r.id,
+        r.total_views,
+        r.live_views,
+        r.like_count,
+        r.comment_count,
+        u.username as driver_username,
+        u.first_name as driver_first_name,
+        u.last_name as driver_last_name,
+        r.location_city,
+        r.location_country,
+        r.created_at
+      FROM recordings r
+      JOIN users u ON r.driver_id = u.id
+      WHERE r.deleted_at IS NULL
+        AND r.live_views > 0
+        AND r.track_id IS NULL
+      ORDER BY r.live_views DESC
+      LIMIT $1
+    `, [limit]);
+    return result.rows;
+  },
+
+  // Top events by total views
+  async getTopViewedEvents(limit = 10) {
+    const result = await db.query(`
+      SELECT
+        e.id,
+        e.total_views,
+        e.live_views,
+        e.like_count,
+        e.comment_count,
+        e.recording_count,
+        e.driver_count,
+        t.name as track_name,
+        t.location_city,
+        t.location_country,
+        e.created_at
+      FROM events e
+      JOIN tracks t ON e.track_id = t.id
+      WHERE e.deleted_at IS NULL AND e.total_views > 0
+      ORDER BY e.total_views DESC
+      LIMIT $1
+    `, [limit]);
+    return result.rows;
+  },
+
+  // Top events by live views
+  async getTopLiveViewedEvents(limit = 10) {
+    const result = await db.query(`
+      SELECT
+        e.id,
+        e.total_views,
+        e.live_views,
+        e.like_count,
+        e.comment_count,
+        e.recording_count,
+        e.driver_count,
+        t.name as track_name,
+        t.location_city,
+        t.location_country,
+        e.created_at
+      FROM events e
+      JOIN tracks t ON e.track_id = t.id
+      WHERE e.deleted_at IS NULL AND e.live_views > 0
+      ORDER BY e.live_views DESC
+      LIMIT $1
+    `, [limit]);
+    return result.rows;
   }
 };
 

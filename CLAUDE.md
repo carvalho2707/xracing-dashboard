@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-XRacing Dashboard is a KPI analytics dashboard for the XRacing8 racing application. It displays real-time metrics about users, recordings, tracks, events, and social engagement from a PostgreSQL database.
+xracing dashboard is a KPI analytics dashboard for the xracing racing application. It displays real-time metrics about users, recordings, tracks, events, and social engagement from a PostgreSQL database.
 
 ## Commands
 

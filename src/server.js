@@ -225,6 +225,60 @@ app.get('/api/heatmap-locations', async (req, res) => {
   }
 });
 
+app.get('/api/views-stats', async (req, res) => {
+  try {
+    const data = await queries.getViewsStats();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching views stats:', error);
+    res.status(500).json({ error: 'Failed to fetch views stats' });
+  }
+});
+
+app.get('/api/top-viewed-recordings', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const data = await queries.getTopViewedRecordings(limit);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching top viewed recordings:', error);
+    res.status(500).json({ error: 'Failed to fetch top viewed recordings' });
+  }
+});
+
+app.get('/api/top-live-viewed-recordings', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const data = await queries.getTopLiveViewedRecordings(limit);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching top live viewed recordings:', error);
+    res.status(500).json({ error: 'Failed to fetch top live viewed recordings' });
+  }
+});
+
+app.get('/api/top-viewed-events', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const data = await queries.getTopViewedEvents(limit);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching top viewed events:', error);
+    res.status(500).json({ error: 'Failed to fetch top viewed events' });
+  }
+});
+
+app.get('/api/top-live-viewed-events', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const data = await queries.getTopLiveViewedEvents(limit);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching top live viewed events:', error);
+    res.status(500).json({ error: 'Failed to fetch top live viewed events' });
+  }
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -236,5 +290,5 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`XRacing Dashboard running on port ${PORT}`);
+  console.log(`xracing dashboard running on port ${PORT}`);
 });

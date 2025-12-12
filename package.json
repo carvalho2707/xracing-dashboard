@@ -9,7 +9,7 @@
   "keywords": ["racing", "dashboard", "kpi"],
   "author": "",
   "license": "ISC",
-  "description": "XRacing8 KPI Dashboard",
+  "description": "xracing KPI Dashboard",
   "engines": {
     "node": ">=18.0.0"
   },
