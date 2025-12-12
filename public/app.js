@@ -610,7 +610,7 @@ async function updateTopViewedEvents() {
         <span class="text-white font-medium">${event.track_name || 'Unknown'}</span>
       </td>
       <td class="py-3 px-2 text-racing-muted text-sm">
-        ${[event.location_city, event.location_country].filter(Boolean).join(', ') || '-'}
+        ${formatDate(event.created_at)}
       </td>
       <td class="py-3 px-2 text-right text-yellow-400 font-medium">${formatNumber(parseInt(event.total_views))}</td>
       <td class="py-3 px-2 text-right text-racing-muted">${formatNumber(parseInt(event.driver_count))}</td>
@@ -636,7 +636,7 @@ async function updateTopLiveViewedEvents() {
         <span class="text-white font-medium">${event.track_name || 'Unknown'}</span>
       </td>
       <td class="py-3 px-2 text-racing-muted text-sm">
-        ${[event.location_city, event.location_country].filter(Boolean).join(', ') || '-'}
+        ${formatDate(event.created_at)}
       </td>
       <td class="py-3 px-2 text-right text-red-400 font-medium">${formatNumber(parseInt(event.live_views))}</td>
       <td class="py-3 px-2 text-right text-racing-muted">${formatNumber(parseInt(event.recording_count))}</td>
