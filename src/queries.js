@@ -1,7 +1,7 @@
 const db = require('./db');
 
 const queries = {
-  // Live recordings count (status = 0 is LIVE, 1 = UPLOADING, 2 = ENDED)
+  // Live recordings count (status = 0 is LIVE, 1 = UPLOADING, 2 = ENDED today)
   async getLiveRecordings() {
     const result = await db.query(`
       SELECT
@@ -9,14 +9,14 @@ const queries = {
         COUNT(DISTINCT driver_id) FILTER (WHERE status = 0) as live_drivers,
         COUNT(DISTINCT track_id) FILTER (WHERE status = 0) as live_tracks,
         COUNT(*) FILTER (WHERE status = 1) as uploading_count,
-        COUNT(*) FILTER (WHERE status = 2) as ended_count
+        COUNT(*) FILTER (WHERE status = 2 AND created_at >= CURRENT_DATE) as ended_count
       FROM recordings
-      WHERE status IN (0, 1, 2) AND deleted_at IS NULL
+      WHERE deleted_at IS NULL
     `);
     return result.rows[0];
   },
 
-  // Live monitoring - active recordings (LIVE and UPLOADING)
+  // Live monitoring - recordings from current day
   async getLiveMonitoring(limit = 50) {
     const result = await db.query(`
       SELECT
@@ -33,7 +33,7 @@ const queries = {
       JOIN users u ON r.driver_id = u.id
       LEFT JOIN tracks t ON r.track_id = t.id
       WHERE r.deleted_at IS NULL
-        AND r.status IN (0, 1)
+        AND r.created_at >= CURRENT_DATE
       ORDER BY r.created_at DESC
       LIMIT $1
     `, [limit]);
