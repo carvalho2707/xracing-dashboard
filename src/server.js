@@ -20,6 +20,17 @@ app.get('/api/live', async (req, res) => {
   }
 });
 
+app.get('/api/live-monitoring', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const data = await queries.getLiveMonitoring(limit);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching live monitoring:', error);
+    res.status(500).json({ error: 'Failed to fetch live monitoring' });
+  }
+});
+
 app.get('/api/overview', async (req, res) => {
   try {
     const stats = await queries.getOverviewStats();

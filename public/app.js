@@ -46,6 +46,17 @@ function timeAgo(dateStr) {
   return formatDate(dateStr);
 }
 
+function formatDateTime(dateStr) {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
 // Chart instances
 let totalUsersChart, newUsersChart, recordingActivityChart, dailyRecordingsChart, geoChart, engagementChart;
 
@@ -61,10 +72,61 @@ async function updateLiveRecordings() {
     const data = await response.json();
 
     document.getElementById('liveCount').textContent = parseInt(data.live_count) || 0;
+    document.getElementById('uploadingCount').textContent = parseInt(data.uploading_count) || 0;
+    document.getElementById('endedCount').textContent = parseInt(data.ended_count) || 0;
     document.getElementById('liveDrivers').textContent = parseInt(data.live_drivers) || 0;
     document.getElementById('liveTracks').textContent = parseInt(data.live_tracks) || 0;
   } catch (error) {
     console.error('Error fetching live recordings:', error);
+  }
+}
+
+// Status name mapping
+const STATUS_NAMES = {
+  0: 'LIVE',
+  1: 'UPLOADING',
+  2: 'ENDED'
+};
+
+const STATUS_COLORS = {
+  0: 'bg-red-500',
+  1: 'bg-yellow-500',
+  2: 'bg-green-500'
+};
+
+// Update live monitoring table
+async function updateLiveMonitoring() {
+  try {
+    const response = await fetch('/api/live-monitoring');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+
+    const tbody = document.getElementById('liveMonitoringTable');
+    if (data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-racing-muted">No active recordings</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.map(rec => `
+      <tr class="border-b border-racing-border/50 hover:bg-racing-border/20">
+        <td class="py-3 px-2">
+          <span class="text-white font-medium">
+            ${rec.username || `${rec.first_name || ''} ${rec.last_name || ''}`.trim() || 'Anonymous'}
+          </span>
+        </td>
+        <td class="py-3 px-2 text-racing-muted text-sm">
+          ${rec.track_name || [rec.location_city, rec.location_country].filter(Boolean).join(', ') || '-'}
+        </td>
+        <td class="py-3 px-2 text-racing-muted text-sm whitespace-nowrap">${formatDateTime(rec.start_time)}</td>
+        <td class="py-3 px-2">
+          <span class="px-2 py-1 rounded text-xs font-medium text-white ${STATUS_COLORS[rec.status] || 'bg-gray-500'}">
+            ${STATUS_NAMES[rec.status] || 'UNKNOWN'}
+          </span>
+        </td>
+      </tr>
+    `).join('');
+  } catch (error) {
+    console.error('Error fetching live monitoring:', error);
   }
 }
 
@@ -493,7 +555,7 @@ async function updateRecentActivity() {
           </p>
         </div>
       </div>
-      <span class="text-racing-muted text-xs">${timeAgo(activity.created_at)}</span>
+      <span class="text-racing-muted text-xs whitespace-nowrap">${formatDateTime(activity.created_at)}</span>
     </div>
   `).join('');
 }
@@ -516,9 +578,10 @@ async function updateRecentUsers() {
           <p class="text-white text-sm font-medium">
             ${user.username || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Anonymous'}
           </p>
+          <p class="text-racing-muted text-xs">${user.email || '-'}</p>
         </div>
       </div>
-      <span class="text-racing-muted text-xs">${timeAgo(user.created_at)}</span>
+      <span class="text-racing-muted text-xs whitespace-nowrap">${formatDateTime(user.created_at)}</span>
     </div>
   `).join('');
 }
@@ -766,6 +829,7 @@ async function refreshData() {
 
   await Promise.all([
     updateLiveRecordings(),
+    updateLiveMonitoring(),
     updateOverview(),
     updateSocialMetrics(),
     updateMediaStats(),
@@ -801,5 +865,8 @@ document.addEventListener('DOMContentLoaded', refreshData);
 // Auto-refresh every 5 minutes
 setInterval(refreshData, 300000);
 
-// Refresh live counter every 30 seconds
-setInterval(updateLiveRecordings, 30000);
+// Refresh live counter and monitoring every 30 seconds
+setInterval(() => {
+  updateLiveRecordings();
+  updateLiveMonitoring();
+}, 30000);

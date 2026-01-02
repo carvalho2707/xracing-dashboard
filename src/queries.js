@@ -1,17 +1,43 @@
 const db = require('./db');
 
 const queries = {
-  // Live recordings count (status = 0 is LIVE)
+  // Live recordings count (status = 0 is LIVE, 1 = UPLOADING, 2 = ENDED)
   async getLiveRecordings() {
     const result = await db.query(`
       SELECT
-        COUNT(*) as live_count,
-        COUNT(DISTINCT driver_id) as live_drivers,
-        COUNT(DISTINCT track_id) as live_tracks
+        COUNT(*) FILTER (WHERE status = 0) as live_count,
+        COUNT(DISTINCT driver_id) FILTER (WHERE status = 0) as live_drivers,
+        COUNT(DISTINCT track_id) FILTER (WHERE status = 0) as live_tracks,
+        COUNT(*) FILTER (WHERE status = 1) as uploading_count,
+        COUNT(*) FILTER (WHERE status = 2) as ended_count
       FROM recordings
-      WHERE status = 0 AND deleted_at IS NULL
+      WHERE status IN (0, 1, 2) AND deleted_at IS NULL
     `);
     return result.rows[0];
+  },
+
+  // Live monitoring - active recordings (LIVE and UPLOADING)
+  async getLiveMonitoring(limit = 50) {
+    const result = await db.query(`
+      SELECT
+        r.id,
+        u.username,
+        u.first_name,
+        u.last_name,
+        r.status,
+        r.created_at as start_time,
+        t.name as track_name,
+        r.location_city,
+        r.location_country
+      FROM recordings r
+      JOIN users u ON r.driver_id = u.id
+      LEFT JOIN tracks t ON r.track_id = t.id
+      WHERE r.deleted_at IS NULL
+        AND r.status IN (0, 1)
+      ORDER BY r.created_at DESC
+      LIMIT $1
+    `, [limit]);
+    return result.rows;
   },
 
   // Overview KPIs
@@ -223,6 +249,7 @@ const queries = {
         u.username,
         u.first_name,
         u.last_name,
+        u.email,
         u.created_at
       FROM users u
       ORDER BY u.created_at DESC
