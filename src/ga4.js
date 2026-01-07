@@ -9,9 +9,14 @@ const PROD_APP_ID = 'com.filipecarvalho.xracing8';
 
 function getClient() {
   if (!analyticsClient) {
-    // Support both file path (local) and JSON string (Railway/production)
-    if (process.env.GA4_CREDENTIALS_JSON) {
-      // Parse JSON from environment variable
+    // Support: base64 encoded JSON (Railway), raw JSON, or file path (local)
+    if (process.env.GA4_CREDENTIALS_BASE64) {
+      // Decode base64 and parse JSON
+      const decoded = Buffer.from(process.env.GA4_CREDENTIALS_BASE64, 'base64').toString('utf8');
+      const credentials = JSON.parse(decoded);
+      analyticsClient = new BetaAnalyticsDataClient({ credentials });
+    } else if (process.env.GA4_CREDENTIALS_JSON) {
+      // Parse JSON directly from environment variable
       const credentials = JSON.parse(process.env.GA4_CREDENTIALS_JSON);
       analyticsClient = new BetaAnalyticsDataClient({ credentials });
     } else if (process.env.GA4_CREDENTIALS_PATH) {
@@ -19,7 +24,7 @@ function getClient() {
       const credentialsPath = path.resolve(process.env.GA4_CREDENTIALS_PATH);
       analyticsClient = new BetaAnalyticsDataClient({ keyFilename: credentialsPath });
     } else {
-      throw new Error('GA4 credentials not configured. Set GA4_CREDENTIALS_JSON or GA4_CREDENTIALS_PATH');
+      throw new Error('GA4 credentials not configured. Set GA4_CREDENTIALS_BASE64, GA4_CREDENTIALS_JSON, or GA4_CREDENTIALS_PATH');
     }
   }
   return analyticsClient;
