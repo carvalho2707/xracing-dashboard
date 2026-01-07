@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const queries = require('./queries');
+const ga4 = require('./ga4');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -287,6 +288,112 @@ app.get('/api/top-live-viewed-events', async (req, res) => {
   } catch (error) {
     console.error('Error fetching top live viewed events:', error);
     res.status(500).json({ error: 'Failed to fetch top live viewed events' });
+  }
+});
+
+// GA4 Analytics API Routes
+app.get('/api/ga4/overview', async (req, res) => {
+  try {
+    const data = await ga4.getOverviewStats();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching GA4 overview:', error);
+    res.status(500).json({ error: 'Failed to fetch GA4 overview' });
+  }
+});
+
+app.get('/api/ga4/active-users', async (req, res) => {
+  try {
+    const data = await ga4.getActiveUserMetrics();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching GA4 active users:', error);
+    res.status(500).json({ error: 'Failed to fetch GA4 active users' });
+  }
+});
+
+app.get('/api/ga4/daily-users', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const data = await ga4.getDailyActiveUsers(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching GA4 daily users:', error);
+    res.status(500).json({ error: 'Failed to fetch GA4 daily users' });
+  }
+});
+
+app.get('/api/ga4/events', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 20;
+    const data = await ga4.getTopEvents(limit);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching GA4 events:', error);
+    res.status(500).json({ error: 'Failed to fetch GA4 events' });
+  }
+});
+
+app.get('/api/ga4/traffic', async (req, res) => {
+  try {
+    const data = await ga4.getTrafficSources();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching GA4 traffic:', error);
+    res.status(500).json({ error: 'Failed to fetch GA4 traffic' });
+  }
+});
+
+app.get('/api/ga4/screens', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const data = await ga4.getTopScreens(limit);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching GA4 screens:', error);
+    res.status(500).json({ error: 'Failed to fetch GA4 screens' });
+  }
+});
+
+app.get('/api/ga4/countries', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 15;
+    const data = await ga4.getCountryBreakdown(limit);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching GA4 countries:', error);
+    res.status(500).json({ error: 'Failed to fetch GA4 countries' });
+  }
+});
+
+app.get('/api/ga4/devices', async (req, res) => {
+  try {
+    const data = await ga4.getDeviceBreakdown();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching GA4 devices:', error);
+    res.status(500).json({ error: 'Failed to fetch GA4 devices' });
+  }
+});
+
+app.get('/api/ga4/retention', async (req, res) => {
+  try {
+    const data = await ga4.getUserRetention();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching GA4 retention:', error);
+    res.status(500).json({ error: 'Failed to fetch GA4 retention' });
+  }
+});
+
+app.get('/api/ga4/engagement', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 14;
+    const data = await ga4.getEngagementTrend(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching GA4 engagement:', error);
+    res.status(500).json({ error: 'Failed to fetch GA4 engagement' });
   }
 });
 

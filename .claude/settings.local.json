@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(npm init -y)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(node test-play-api.js:*)",
+      "WebFetch(domain:developers.google.com)",
+      "Bash(npm uninstall:*)",
+      "Bash(node test-ga4-api.js:*)"
     ],
     "deny": [],
     "ask": []

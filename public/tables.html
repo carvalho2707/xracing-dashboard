@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tables - xracing dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            racing: {
+              red: '#E53935',
+              dark: '#0D1117',
+              darker: '#010409',
+              card: '#161B22',
+              border: '#30363D',
+              text: '#C9D1D9',
+              muted: '#8B949E'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #0D1117 0%, #010409 100%);
+      min-height: 100vh;
+    }
+    .glass-card {
+      background: rgba(22, 27, 34, 0.8);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(48, 54, 61, 0.5);
+    }
+    .pulse-dot {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body class="font-sans text-racing-text">
+  <!-- Sidebar -->
+  <button id="sidebarToggle" class="sidebar-toggle">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+  </button>
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <a href="/">
+        <img src="/logo_red.svg" alt="xracing" class="h-8 w-auto">
+      </a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+        <span>Home</span>
+      </a>
+      <a href="/live.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z"/>
+        </svg>
+        <span>Live</span>
+      </a>
+      <a href="/analytics.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        <span>Analytics</span>
+      </a>
+      <a href="/kpis.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        <span>KPIs</span>
+      </a>
+      <a href="/tables.html" class="active">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+        </svg>
+        <span>Tables</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      xracing dashboard
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Header -->
+    <header class="page-header">
+      <div class="page-header-content">
+        <div class="flex items-center gap-4">
+          <h1 class="page-title">Data Tables</h1>
+        </div>
+        <button onclick="refreshData()" class="px-4 py-2 bg-racing-card hover:bg-racing-border text-sm rounded-lg transition-colors">
+          Refresh
+        </button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <!-- Loading State -->
+      <div id="loading" class="flex items-center justify-center py-20">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-racing-red"></div>
+      </div>
+
+      <!-- Dashboard Content -->
+      <div id="dashboard" class="hidden space-y-6">
+        <!-- Top Tracks & Drivers Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Top Tracks -->
+          <div class="glass-card rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-white mb-4">Top Tracks</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="text-racing-muted text-sm border-b border-racing-border">
+                    <th class="text-left py-3 px-2">#</th>
+                    <th class="text-left py-3 px-2">Track</th>
+                    <th class="text-left py-3 px-2">Location</th>
+                    <th class="text-right py-3 px-2">Recordings</th>
+                    <th class="text-right py-3 px-2">Drivers</th>
+                  </tr>
+                </thead>
+                <tbody id="topTracksTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Top Drivers -->
+          <div class="glass-card rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-white mb-4">Top Drivers</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="text-racing-muted text-sm border-b border-racing-border">
+                    <th class="text-left py-3 px-2">#</th>
+                    <th class="text-left py-3 px-2">Driver</th>
+                    <th class="text-right py-3 px-2">Recordings</th>
+                    <th class="text-right py-3 px-2">Tracks</th>
+                    <th class="text-right py-3 px-2">Followers</th>
+                  </tr>
+                </thead>
+                <tbody id="topDriversTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Views Tables Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Most Viewed Recordings -->
+          <div class="glass-card rounded-xl p-6">
+            <div class="flex items-center mb-4">
+              <svg class="w-5 h-5 text-cyan-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              <h3 class="text-lg font-semibold text-white">Most Viewed Recordings</h3>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="text-racing-muted text-sm border-b border-racing-border">
+                    <th class="text-left py-3 px-2">#</th>
+                    <th class="text-left py-3 px-2">Driver</th>
+                    <th class="text-left py-3 px-2">Track/Location</th>
+                    <th class="text-right py-3 px-2">Views</th>
+                    <th class="text-right py-3 px-2">Engagement</th>
+                  </tr>
+                </thead>
+                <tbody id="topViewedRecordingsTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Most Viewed Events -->
+          <div class="glass-card rounded-xl p-6">
+            <div class="flex items-center mb-4">
+              <svg class="w-5 h-5 text-yellow-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              <h3 class="text-lg font-semibold text-white">Most Viewed Events</h3>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="text-racing-muted text-sm border-b border-racing-border">
+                    <th class="text-left py-3 px-2">#</th>
+                    <th class="text-left py-3 px-2">Track</th>
+                    <th class="text-left py-3 px-2">Date</th>
+                    <th class="text-right py-3 px-2">Views</th>
+                    <th class="text-right py-3 px-2">Drivers</th>
+                  </tr>
+                </thead>
+                <tbody id="topViewedEventsTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Views Tables Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Most Live Viewed Events -->
+          <div class="glass-card rounded-xl p-6">
+            <div class="flex items-center mb-4">
+              <span class="w-2 h-2 bg-red-500 rounded-full mr-2 pulse-dot"></span>
+              <h3 class="text-lg font-semibold text-white">Most Live Viewed Events</h3>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="text-racing-muted text-sm border-b border-racing-border">
+                    <th class="text-left py-3 px-2">#</th>
+                    <th class="text-left py-3 px-2">Track</th>
+                    <th class="text-left py-3 px-2">Date</th>
+                    <th class="text-right py-3 px-2">Live Views</th>
+                    <th class="text-right py-3 px-2">Recordings</th>
+                  </tr>
+                </thead>
+                <tbody id="topLiveViewedEventsTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Most Live Viewed Recordings (noTrack) -->
+          <div class="glass-card rounded-xl p-6">
+            <div class="flex items-center mb-4">
+              <span class="w-2 h-2 bg-red-500 rounded-full mr-2 pulse-dot"></span>
+              <h3 class="text-lg font-semibold text-white">Most Live Viewed Recordings</h3>
+              <span class="ml-2 text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-400">noTrack</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="text-racing-muted text-sm border-b border-racing-border">
+                    <th class="text-left py-3 px-2">#</th>
+                    <th class="text-left py-3 px-2">Driver</th>
+                    <th class="text-left py-3 px-2">Location</th>
+                    <th class="text-right py-3 px-2">Live Views</th>
+                    <th class="text-right py-3 px-2">Engagement</th>
+                  </tr>
+                </thead>
+                <tbody id="topLiveViewedRecordingsTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/shared.js"></script>
+  <script src="/js/tables.js"></script>
+</body>
+</html>

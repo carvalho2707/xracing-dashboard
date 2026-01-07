@@ -9,12 +9,10 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
   <script>
     tailwind.config = {
       theme: {
@@ -61,541 +59,300 @@
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
     }
-    .chart-container {
-      position: relative;
-      height: 250px;
-    }
-    #heatmap {
-      height: 400px;
-      border-radius: 0.75rem;
-      z-index: 0;
-    }
-    .leaflet-container {
-      background: #0D1117;
-    }
-    #heatmapCard.fullscreen {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 9999;
-      border-radius: 0;
-      margin: 0;
-      padding: 1rem;
-    }
-    #heatmapCard.fullscreen #heatmap {
-      height: calc(100vh - 80px);
-      border-radius: 0.5rem;
+    .sparkline-chart {
+      height: 50px;
     }
   </style>
 </head>
 <body class="font-sans text-racing-text">
-  <!-- Header -->
-  <header class="border-b border-racing-border bg-racing-dark/80 backdrop-blur-md sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center">
-          <img src="/logo_red.svg" alt="xracing" class="h-10 w-auto">
-        </div>
-        <div class="flex items-center space-x-4">
-          <!-- Live Recordings Counter -->
-          <div class="flex items-center space-x-3 bg-racing-card border border-racing-border rounded-lg px-4 py-2">
-            <div class="flex items-center space-x-2">
-              <span class="pulse-dot w-3 h-3 bg-red-500 rounded-full"></span>
-              <span class="text-sm text-racing-muted">LIVE NOW</span>
-            </div>
-            <div class="flex items-center space-x-4 border-l border-racing-border pl-3">
-              <div class="text-center">
-                <p id="liveCount" class="text-2xl font-bold text-red-500">-</p>
-                <p class="text-xs text-racing-muted">live</p>
-              </div>
-              <div class="text-center">
-                <p id="uploadingCount" class="text-2xl font-bold text-yellow-500">-</p>
-                <p class="text-xs text-racing-muted">uploading</p>
-              </div>
-              <div class="text-center">
-                <p id="endedCount" class="text-2xl font-bold text-green-500">-</p>
-                <p class="text-xs text-racing-muted">ended</p>
-              </div>
-              <div class="text-center border-l border-racing-border pl-4">
-                <p id="liveDrivers" class="text-lg font-semibold text-white">-</p>
-                <p class="text-xs text-racing-muted">drivers</p>
-              </div>
-              <div class="text-center">
-                <p id="liveTracks" class="text-lg font-semibold text-white">-</p>
-                <p class="text-xs text-racing-muted">tracks</p>
-              </div>
-            </div>
-          </div>
-          <button onclick="refreshData()" class="px-4 py-2 bg-racing-card hover:bg-racing-border text-sm rounded-lg transition-colors">
-            Refresh
-          </button>
-        </div>
-      </div>
+  <!-- Sidebar -->
+  <button id="sidebarToggle" class="sidebar-toggle">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+  </button>
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <a href="/">
+        <img src="/logo_red.svg" alt="xracing" class="h-8 w-auto">
+      </a>
     </div>
-  </header>
-
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Loading State -->
-    <div id="loading" class="flex items-center justify-center py-20">
-      <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-racing-red"></div>
+    <nav class="sidebar-nav">
+      <a href="/" class="active">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+        <span>Home</span>
+      </a>
+      <a href="/live.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z"/>
+        </svg>
+        <span>Live</span>
+      </a>
+      <a href="/analytics.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        <span>Analytics</span>
+      </a>
+      <a href="/kpis.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        <span>KPIs</span>
+      </a>
+      <a href="/tables.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+        </svg>
+        <span>Tables</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      xracing dashboard
     </div>
+  </aside>
 
-    <!-- Dashboard Content -->
-    <div id="dashboard" class="hidden space-y-8">
-      <!-- Growth Rates Section -->
-      <div class="glass-card rounded-xl p-6 glow-red">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-xl font-bold text-white">Growth Momentum</h2>
-          <span class="text-xs text-racing-muted">Updated in real-time</span>
-        </div>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <!-- Users WoW -->
-          <div class="text-center">
-            <p class="text-racing-muted text-sm mb-1">Users WoW</p>
-            <p id="usersWow" class="text-3xl font-bold text-white">-</p>
-            <p id="usersWowDetail" class="text-xs text-racing-muted mt-1">- vs -</p>
-          </div>
-          <!-- Users MoM -->
-          <div class="text-center">
-            <p class="text-racing-muted text-sm mb-1">Users MoM</p>
-            <p id="usersMom" class="text-3xl font-bold text-white">-</p>
-            <p id="usersMomDetail" class="text-xs text-racing-muted mt-1">- vs -</p>
-          </div>
-          <!-- Recordings WoW -->
-          <div class="text-center">
-            <p class="text-racing-muted text-sm mb-1">Recordings WoW</p>
-            <p id="recordingsWow" class="text-3xl font-bold text-white">-</p>
-            <p id="recordingsWowDetail" class="text-xs text-racing-muted mt-1">- vs -</p>
-          </div>
-          <!-- Recordings MoM -->
-          <div class="text-center">
-            <p class="text-racing-muted text-sm mb-1">Recordings MoM</p>
-            <p id="recordingsMom" class="text-3xl font-bold text-white">-</p>
-            <p id="recordingsMomDetail" class="text-xs text-racing-muted mt-1">- vs -</p>
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Header -->
+    <header class="page-header">
+      <div class="page-header-content">
+        <div class="flex items-center gap-4">
+          <h1 class="page-title">Dashboard</h1>
+          <div class="live-indicator">
+            <span class="dot"></span>
+            <span class="text-sm text-red-400 font-medium">
+              <span id="headerLiveCount">-</span> Live
+            </span>
           </div>
         </div>
+        <button onclick="refreshData()" class="px-4 py-2 bg-racing-card hover:bg-racing-border text-sm rounded-lg transition-colors">
+          Refresh
+        </button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <!-- Loading State -->
+      <div id="loading" class="flex items-center justify-center py-20">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-racing-red"></div>
       </div>
 
-      <!-- Live Monitoring Table -->
-      <div class="glass-card rounded-xl p-6">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center">
-            <span class="pulse-dot w-2 h-2 bg-red-500 rounded-full mr-2"></span>
-            <h3 class="text-lg font-semibold text-white">Live Monitoring</h3>
+      <!-- Dashboard Content -->
+      <div id="dashboard" class="hidden space-y-6">
+        <!-- Growth Rates Section -->
+        <div class="glass-card rounded-xl p-6 glow-red">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-white">Growth Momentum</h2>
+            <span class="text-xs text-racing-muted">Week-over-Week & Month-over-Month</span>
           </div>
-          <span class="text-xs text-racing-muted">Auto-refreshes every 30s</span>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead>
-              <tr class="text-racing-muted text-sm border-b border-racing-border">
-                <th class="text-left py-3 px-2">Driver</th>
-                <th class="text-left py-3 px-2">Track/Location</th>
-                <th class="text-left py-3 px-2">Start Time</th>
-                <th class="text-left py-3 px-2">Status</th>
-              </tr>
-            </thead>
-            <tbody id="liveMonitoringTable">
-              <tr><td colspan="4" class="py-8 text-center text-racing-muted">Loading...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- KPI Cards Row -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="stat-card rounded-xl p-5">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-racing-muted text-sm">Total Users</p>
-              <p id="totalUsers" class="text-3xl font-bold text-white mt-1">-</p>
-              <p id="newUsers7d" class="text-xs text-green-400 mt-1">+- this week</p>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div class="text-center">
+              <p class="text-racing-muted text-sm mb-1">Users WoW</p>
+              <p id="usersWow" class="text-3xl font-bold text-white">-</p>
+              <p id="usersWowDetail" class="text-xs text-racing-muted mt-1">- vs -</p>
             </div>
-            <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-              </svg>
+            <div class="text-center">
+              <p class="text-racing-muted text-sm mb-1">Users MoM</p>
+              <p id="usersMom" class="text-3xl font-bold text-white">-</p>
+              <p id="usersMomDetail" class="text-xs text-racing-muted mt-1">- vs -</p>
+            </div>
+            <div class="text-center">
+              <p class="text-racing-muted text-sm mb-1">Recordings WoW</p>
+              <p id="recordingsWow" class="text-3xl font-bold text-white">-</p>
+              <p id="recordingsWowDetail" class="text-xs text-racing-muted mt-1">- vs -</p>
+            </div>
+            <div class="text-center">
+              <p class="text-racing-muted text-sm mb-1">Recordings MoM</p>
+              <p id="recordingsMom" class="text-3xl font-bold text-white">-</p>
+              <p id="recordingsMomDetail" class="text-xs text-racing-muted mt-1">- vs -</p>
             </div>
           </div>
         </div>
 
-        <div class="stat-card rounded-xl p-5">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-racing-muted text-sm">Recordings</p>
-              <p id="totalRecordings" class="text-3xl font-bold text-white mt-1">-</p>
-              <p id="recordings30d" class="text-xs text-green-400 mt-1">+- last 30 days</p>
-            </div>
-            <div class="w-12 h-12 bg-racing-red/20 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-racing-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div class="stat-card rounded-xl p-5">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-racing-muted text-sm">Tracks</p>
-              <p id="totalTracks" class="text-3xl font-bold text-white mt-1">-</p>
-              <p class="text-xs text-racing-muted mt-1">Created by users</p>
-            </div>
-            <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div class="stat-card rounded-xl p-5">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-racing-muted text-sm">Events</p>
-              <p id="totalEvents" class="text-3xl font-bold text-white mt-1">-</p>
-              <p class="text-xs text-racing-muted mt-1">Track days</p>
-            </div>
-            <div class="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Secondary Stats -->
-      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div class="glass-card rounded-xl p-4 text-center">
-          <p class="text-racing-muted text-sm">Total Distance</p>
-          <p id="totalDistance" class="text-2xl font-semibold text-white mt-1">-</p>
-        </div>
-        <div class="glass-card rounded-xl p-4 text-center">
-          <p class="text-racing-muted text-sm">Recording Time</p>
-          <p id="totalTime" class="text-2xl font-semibold text-white mt-1">-</p>
-        </div>
-        <div class="glass-card rounded-xl p-4 text-center">
-          <p class="text-racing-muted text-sm">Uploaded Files</p>
-          <p id="totalMedia" class="text-2xl font-semibold text-white mt-1">-</p>
-          <p id="mediaBreakdown" class="text-xs text-racing-muted mt-1">- images, - videos</p>
-        </div>
-        <div class="glass-card rounded-xl p-4 text-center">
-          <p class="text-racing-muted text-sm">Total Likes</p>
-          <p id="totalLikes" class="text-2xl font-semibold text-white mt-1">-</p>
-        </div>
-        <div class="glass-card rounded-xl p-4 text-center">
-          <p class="text-racing-muted text-sm">Total Comments</p>
-          <p id="totalComments" class="text-2xl font-semibold text-white mt-1">-</p>
-        </div>
-      </div>
-
-      <!-- Views Stats -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="glass-card rounded-xl p-4 text-center">
-          <div class="flex items-center justify-center mb-2">
-            <svg class="w-5 h-5 text-cyan-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-            </svg>
-            <p class="text-racing-muted text-sm">Recording Views</p>
-          </div>
-          <p id="totalRecordingViews" class="text-2xl font-semibold text-white">-</p>
-        </div>
-        <div class="glass-card rounded-xl p-4 text-center">
-          <div class="flex items-center justify-center mb-2">
-            <span class="w-2 h-2 bg-red-500 rounded-full mr-2 pulse-dot"></span>
-            <p class="text-racing-muted text-sm">Recording Live Views</p>
-          </div>
-          <p id="totalRecordingLiveViews" class="text-2xl font-semibold text-white">-</p>
-        </div>
-        <div class="glass-card rounded-xl p-4 text-center">
-          <div class="flex items-center justify-center mb-2">
-            <svg class="w-5 h-5 text-yellow-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-            </svg>
-            <p class="text-racing-muted text-sm">Event Views</p>
-          </div>
-          <p id="totalEventViews" class="text-2xl font-semibold text-white">-</p>
-        </div>
-        <div class="glass-card rounded-xl p-4 text-center">
-          <div class="flex items-center justify-center mb-2">
-            <span class="w-2 h-2 bg-red-500 rounded-full mr-2 pulse-dot"></span>
-            <p class="text-racing-muted text-sm">Event Live Views</p>
-          </div>
-          <p id="totalEventLiveViews" class="text-2xl font-semibold text-white">-</p>
-        </div>
-      </div>
-
-      <!-- Recording Locations Heatmap -->
-      <div id="heatmapCard" class="glass-card rounded-xl p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-white">Recording Locations</h3>
-          <div class="flex items-center space-x-3">
-            <span id="heatmapCount" class="text-sm text-racing-muted">- locations</span>
-            <button id="heatmapFullscreenBtn" onclick="toggleHeatmapFullscreen()" class="p-2 bg-racing-card hover:bg-racing-border rounded-lg transition-colors" title="Toggle fullscreen">
-              <svg id="heatmapExpandIcon" class="w-5 h-5 text-racing-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-              </svg>
-              <svg id="heatmapShrinkIcon" class="w-5 h-5 text-racing-muted hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div id="heatmap"></div>
-      </div>
-
-      <!-- User Charts Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Total Users Chart -->
-        <div class="glass-card rounded-xl p-6">
-          <h3 class="text-lg font-semibold text-white mb-4">Total Users</h3>
-          <div class="chart-container">
-            <canvas id="totalUsersChart"></canvas>
-          </div>
-        </div>
-
-        <!-- New Users per Month Chart -->
-        <div class="glass-card rounded-xl p-6">
-          <h3 class="text-lg font-semibold text-white mb-4">New Users per Month</h3>
-          <div class="chart-container">
-            <canvas id="newUsersChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Recording Charts Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Recording Activity Chart -->
-        <div class="glass-card rounded-xl p-6">
-          <h3 class="text-lg font-semibold text-white mb-4">Recording Activity</h3>
-          <div class="chart-container">
-            <canvas id="recordingActivityChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Daily Recordings -->
-        <div class="glass-card rounded-xl p-6">
-          <h3 class="text-lg font-semibold text-white mb-4">Daily Recordings (Last 30 Days)</h3>
-          <div class="chart-container">
-            <canvas id="dailyRecordingsChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Engagement & Geographic Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- User Engagement -->
-        <div class="glass-card rounded-xl p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-white">User Engagement</h3>
-            <div class="flex items-center space-x-4 text-sm">
-              <div class="text-center">
-                <span class="text-racing-muted">Active Users</span>
-                <p id="activeUsersPercent" class="text-white font-semibold">-</p>
+        <!-- Primary KPI Cards with Sparklines -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Users Card -->
+          <div class="stat-card rounded-xl p-5 hover-card">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <p class="text-racing-muted text-sm">Total Users</p>
+                <p id="totalUsers" class="text-3xl font-bold text-white mt-1">-</p>
+                <p id="newUsers7d" class="text-xs text-green-400 mt-1">+- this week</p>
               </div>
-              <div class="text-center">
-                <span class="text-racing-muted">Avg Recordings</span>
-                <p id="avgRecordingsActive" class="text-white font-semibold">-</p>
+              <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+              </div>
+            </div>
+            <div class="sparkline-chart">
+              <canvas id="usersSparkline"></canvas>
+            </div>
+          </div>
+
+          <!-- Recordings Card -->
+          <div class="stat-card rounded-xl p-5 hover-card">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <p class="text-racing-muted text-sm">Recordings</p>
+                <p id="totalRecordings" class="text-3xl font-bold text-white mt-1">-</p>
+                <p id="recordings30d" class="text-xs text-green-400 mt-1">+- last 30 days</p>
+              </div>
+              <div class="w-12 h-12 bg-racing-red/20 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-racing-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+              </div>
+            </div>
+            <div class="sparkline-chart">
+              <canvas id="recordingsSparkline"></canvas>
+            </div>
+          </div>
+
+          <!-- Tracks Card -->
+          <div class="stat-card rounded-xl p-5 hover-card">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <p class="text-racing-muted text-sm">Tracks</p>
+                <p id="totalTracks" class="text-3xl font-bold text-white mt-1">-</p>
+                <p class="text-xs text-racing-muted mt-1">Created by users</p>
+              </div>
+              <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7"/>
+                </svg>
               </div>
             </div>
           </div>
-          <div class="chart-container">
-            <canvas id="engagementChart"></canvas>
+
+          <!-- Events Card -->
+          <div class="stat-card rounded-xl p-5 hover-card">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <p class="text-racing-muted text-sm">Events</p>
+                <p id="totalEvents" class="text-3xl font-bold text-white mt-1">-</p>
+                <p class="text-xs text-racing-muted mt-1">Track days</p>
+              </div>
+              <div class="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Geographic Distribution -->
-        <div class="glass-card rounded-xl p-6">
-          <h3 class="text-lg font-semibold text-white mb-4">Geographic Distribution</h3>
-          <div class="chart-container">
-            <canvas id="geoChart"></canvas>
+        <!-- Secondary Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div class="glass-card rounded-xl p-4 text-center hover-card">
+            <p class="text-racing-muted text-xs mb-1">Total Distance</p>
+            <p id="totalDistance" class="text-xl font-semibold text-white">-</p>
           </div>
-        </div>
-      </div>
-
-      <!-- Tables Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Top Tracks -->
-        <div class="glass-card rounded-xl p-6">
-          <h3 class="text-lg font-semibold text-white mb-4">Top Tracks</h3>
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead>
-                <tr class="text-racing-muted text-sm border-b border-racing-border">
-                  <th class="text-left py-3 px-2">#</th>
-                  <th class="text-left py-3 px-2">Track</th>
-                  <th class="text-left py-3 px-2">Location</th>
-                  <th class="text-right py-3 px-2">Recordings</th>
-                  <th class="text-right py-3 px-2">Drivers</th>
-                </tr>
-              </thead>
-              <tbody id="topTracksTable">
-              </tbody>
-            </table>
+          <div class="glass-card rounded-xl p-4 text-center hover-card">
+            <p class="text-racing-muted text-xs mb-1">Recording Time</p>
+            <p id="totalTime" class="text-xl font-semibold text-white">-</p>
+          </div>
+          <div class="glass-card rounded-xl p-4 text-center hover-card">
+            <p class="text-racing-muted text-xs mb-1">Uploaded Files</p>
+            <p id="totalMedia" class="text-xl font-semibold text-white">-</p>
+          </div>
+          <div class="glass-card rounded-xl p-4 text-center hover-card">
+            <p class="text-racing-muted text-xs mb-1">Total Likes</p>
+            <p id="totalLikes" class="text-xl font-semibold text-white">-</p>
+          </div>
+          <div class="glass-card rounded-xl p-4 text-center hover-card">
+            <p class="text-racing-muted text-xs mb-1">Total Comments</p>
+            <p id="totalComments" class="text-xl font-semibold text-white">-</p>
+          </div>
+          <div class="glass-card rounded-xl p-4 text-center hover-card">
+            <p class="text-racing-muted text-xs mb-1">Active Users</p>
+            <p id="activeUsersPercent" class="text-xl font-semibold text-white">-</p>
           </div>
         </div>
 
-        <!-- Top Drivers -->
-        <div class="glass-card rounded-xl p-6">
-          <h3 class="text-lg font-semibold text-white mb-4">Top Drivers</h3>
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead>
-                <tr class="text-racing-muted text-sm border-b border-racing-border">
-                  <th class="text-left py-3 px-2">#</th>
-                  <th class="text-left py-3 px-2">Driver</th>
-                  <th class="text-right py-3 px-2">Recordings</th>
-                  <th class="text-right py-3 px-2">Tracks</th>
-                  <th class="text-right py-3 px-2">Followers</th>
-                </tr>
-              </thead>
-              <tbody id="topDriversTable">
-              </tbody>
-            </table>
+        <!-- Views Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="glass-card rounded-xl p-4 text-center hover-card">
+            <div class="flex items-center justify-center mb-2">
+              <svg class="w-5 h-5 text-cyan-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              <p class="text-racing-muted text-sm">Recording Views</p>
+            </div>
+            <p id="totalRecordingViews" class="text-2xl font-semibold text-white">-</p>
           </div>
-        </div>
-      </div>
-
-      <!-- Views Tables Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Most Viewed Recordings -->
-        <div class="glass-card rounded-xl p-6">
-          <div class="flex items-center mb-4">
-            <svg class="w-5 h-5 text-cyan-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-            </svg>
-            <h3 class="text-lg font-semibold text-white">Most Viewed Recordings</h3>
+          <div class="glass-card rounded-xl p-4 text-center hover-card">
+            <div class="flex items-center justify-center mb-2">
+              <span class="w-2 h-2 bg-red-500 rounded-full mr-2 pulse-dot"></span>
+              <p class="text-racing-muted text-sm">Recording Live Views</p>
+            </div>
+            <p id="totalRecordingLiveViews" class="text-2xl font-semibold text-white">-</p>
           </div>
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead>
-                <tr class="text-racing-muted text-sm border-b border-racing-border">
-                  <th class="text-left py-3 px-2">#</th>
-                  <th class="text-left py-3 px-2">Driver</th>
-                  <th class="text-left py-3 px-2">Track/Location</th>
-                  <th class="text-right py-3 px-2">Views</th>
-                  <th class="text-right py-3 px-2">Engagement</th>
-                </tr>
-              </thead>
-              <tbody id="topViewedRecordingsTable">
-              </tbody>
-            </table>
+          <div class="glass-card rounded-xl p-4 text-center hover-card">
+            <div class="flex items-center justify-center mb-2">
+              <svg class="w-5 h-5 text-yellow-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              <p class="text-racing-muted text-sm">Event Views</p>
+            </div>
+            <p id="totalEventViews" class="text-2xl font-semibold text-white">-</p>
+          </div>
+          <div class="glass-card rounded-xl p-4 text-center hover-card">
+            <div class="flex items-center justify-center mb-2">
+              <span class="w-2 h-2 bg-red-500 rounded-full mr-2 pulse-dot"></span>
+              <p class="text-racing-muted text-sm">Event Live Views</p>
+            </div>
+            <p id="totalEventLiveViews" class="text-2xl font-semibold text-white">-</p>
           </div>
         </div>
 
-        <!-- Most Viewed Events -->
-        <div class="glass-card rounded-xl p-6">
-          <div class="flex items-center mb-4">
-            <svg class="w-5 h-5 text-yellow-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-            </svg>
-            <h3 class="text-lg font-semibold text-white">Most Viewed Events</h3>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead>
-                <tr class="text-racing-muted text-sm border-b border-racing-border">
-                  <th class="text-left py-3 px-2">#</th>
-                  <th class="text-left py-3 px-2">Track</th>
-                  <th class="text-left py-3 px-2">Date</th>
-                  <th class="text-right py-3 px-2">Views</th>
-                  <th class="text-right py-3 px-2">Drivers</th>
-                </tr>
-              </thead>
-              <tbody id="topViewedEventsTable">
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Live Views Tables Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Most Live Viewed Events -->
-        <div class="glass-card rounded-xl p-6">
-          <div class="flex items-center mb-4">
-            <span class="w-2 h-2 bg-red-500 rounded-full mr-2 pulse-dot"></span>
-            <h3 class="text-lg font-semibold text-white">Most Live Viewed Events</h3>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead>
-                <tr class="text-racing-muted text-sm border-b border-racing-border">
-                  <th class="text-left py-3 px-2">#</th>
-                  <th class="text-left py-3 px-2">Track</th>
-                  <th class="text-left py-3 px-2">Date</th>
-                  <th class="text-right py-3 px-2">Live Views</th>
-                  <th class="text-right py-3 px-2">Recordings</th>
-                </tr>
-              </thead>
-              <tbody id="topLiveViewedEventsTable">
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Most Live Viewed Recordings (noTrack) -->
-        <div class="glass-card rounded-xl p-6">
-          <div class="flex items-center mb-4">
-            <span class="w-2 h-2 bg-red-500 rounded-full mr-2 pulse-dot"></span>
-            <h3 class="text-lg font-semibold text-white">Most Live Viewed Recordings</h3>
-            <span class="ml-2 text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-400">noTrack</span>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead>
-                <tr class="text-racing-muted text-sm border-b border-racing-border">
-                  <th class="text-left py-3 px-2">#</th>
-                  <th class="text-left py-3 px-2">Driver</th>
-                  <th class="text-left py-3 px-2">Location</th>
-                  <th class="text-right py-3 px-2">Live Views</th>
-                  <th class="text-right py-3 px-2">Engagement</th>
-                </tr>
-              </thead>
-              <tbody id="topLiveViewedRecordingsTable">
-              </tbody>
-            </table>
-          </div>
+        <!-- Quick Links -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <a href="/live.html" class="glass-card rounded-xl p-6 hover-card group">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg font-semibold text-white group-hover:text-racing-red transition-colors">Live Monitoring</h3>
+                <p class="text-racing-muted text-sm mt-1">Real-time recording activity</p>
+              </div>
+              <svg class="w-6 h-6 text-racing-muted group-hover:text-racing-red transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </div>
+          </a>
+          <a href="/kpis.html" class="glass-card rounded-xl p-6 hover-card group">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg font-semibold text-white group-hover:text-racing-red transition-colors">KPI Charts</h3>
+                <p class="text-racing-muted text-sm mt-1">Detailed analytics & trends</p>
+              </div>
+              <svg class="w-6 h-6 text-racing-muted group-hover:text-racing-red transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </div>
+          </a>
+          <a href="/tables.html" class="glass-card rounded-xl p-6 hover-card group">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg font-semibold text-white group-hover:text-racing-red transition-colors">Data Tables</h3>
+                <p class="text-racing-muted text-sm mt-1">Top tracks, drivers & views</p>
+              </div>
+              <svg class="w-6 h-6 text-racing-muted group-hover:text-racing-red transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </div>
+          </a>
         </div>
       </div>
+    </main>
+  </div>
 
-      <!-- Recent Recordings -->
-      <div class="glass-card rounded-xl p-6">
-        <h3 class="text-lg font-semibold text-white mb-4">Recent Recordings</h3>
-        <div id="recentActivity" class="space-y-3 max-h-96 overflow-y-auto">
-        </div>
-      </div>
-
-      <!-- Recent Users -->
-      <div class="glass-card rounded-xl p-6">
-        <h3 class="text-lg font-semibold text-white mb-4">Recent Users</h3>
-        <div id="recentUsers" class="space-y-3 max-h-96 overflow-y-auto">
-        </div>
-      </div>
-
-      <!-- Recent Tracks -->
-      <div class="glass-card rounded-xl p-6">
-        <h3 class="text-lg font-semibold text-white mb-4">Recent Tracks</h3>
-        <div id="recentTracks" class="space-y-3 max-h-96 overflow-y-auto">
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <!-- Footer -->
-  <footer class="border-t border-racing-border py-6 mt-12">
-    <div class="max-w-7xl mx-auto px-4 text-center text-racing-muted text-sm">
-      xracing dashboard - Real-time Analytics
-    </div>
-  </footer>
-
-  <script src="app.js"></script>
+  <script src="/js/shared.js"></script>
+  <script src="/js/home.js"></script>
 </body>
 </html>
