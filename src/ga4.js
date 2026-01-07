@@ -4,8 +4,9 @@ const path = require('path');
 
 let analyticsClient = null;
 
-// Production bundle ID (filter out dev and qa)
-const PROD_APP_ID = 'com.filipecarvalho.xracing8';
+// Production stream IDs (filter out dev and qa streams)
+// Android prod: 10194581860, iOS prod: 10194592868
+const PROD_STREAM_IDS = ['10194581860', '10194592868'];
 
 function getClient() {
   if (!analyticsClient) {
@@ -15,7 +16,7 @@ function getClient() {
     console.log('GA4_CREDENTIALS_BASE64:', process.env.GA4_CREDENTIALS_BASE64 ? `SET (${process.env.GA4_CREDENTIALS_BASE64.length} chars)` : 'NOT SET');
     console.log('GA4_CREDENTIALS_JSON:', process.env.GA4_CREDENTIALS_JSON ? `SET (${process.env.GA4_CREDENTIALS_JSON.length} chars)` : 'NOT SET');
     console.log('GA4_CREDENTIALS_PATH:', process.env.GA4_CREDENTIALS_PATH || 'NOT SET');
-    console.log('PROD_APP_ID filter:', PROD_APP_ID);
+    console.log('PROD_STREAM_IDS filter:', PROD_STREAM_IDS.join(', '));
     console.log('=========================');
 
     // Support: base64 encoded JSON (Railway), raw JSON, or file path (local)
@@ -46,28 +47,36 @@ function getPropertyId() {
   return `properties/${process.env.GA4_PROPERTY_ID}`;
 }
 
-// Filter to only include production app (exclude .dev and .qa bundle IDs)
+// Filter to only include production streams (exclude dev and qa streams)
 function getProdFilter() {
-  const filter = {
-    filter: {
-      fieldName: 'appId',
-      stringFilter: {
-        matchType: 'EXACT',
-        value: PROD_APP_ID
-      }
+  if (!PROD_STREAM_IDS || PROD_STREAM_IDS.length === 0) {
+    return null; // No filtering - show all streams
+  }
+
+  // Use OR filter for multiple stream IDs
+  return {
+    orGroup: {
+      expressions: PROD_STREAM_IDS.map(streamId => ({
+        filter: {
+          fieldName: 'streamId',
+          stringFilter: {
+            matchType: 'EXACT',
+            value: streamId
+          }
+        }
+      }))
     }
   };
-  console.log('GA4 filter:', JSON.stringify(filter));
-  return filter;
 }
 
 // Overview stats (last 30 days)
 async function getOverviewStats() {
   const client = getClient();
+  const filter = getProdFilter();
   const [response] = await client.runReport({
     property: getPropertyId(),
     dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
-    dimensionFilter: getProdFilter(),
+    ...(filter && { dimensionFilter: filter }),
     metrics: [
       { name: 'activeUsers' },
       { name: 'newUsers' },
@@ -96,26 +105,27 @@ async function getOverviewStats() {
 // DAU/WAU/MAU
 async function getActiveUserMetrics() {
   const client = getClient();
+  const filter = getProdFilter();
 
   // Get DAU (today), WAU (last 7 days), MAU (last 30 days)
   const [dauResponse] = await client.runReport({
     property: getPropertyId(),
     dateRanges: [{ startDate: 'today', endDate: 'today' }],
-    dimensionFilter: getProdFilter(),
+    ...(filter && { dimensionFilter: filter }),
     metrics: [{ name: 'activeUsers' }]
   });
 
   const [wauResponse] = await client.runReport({
     property: getPropertyId(),
     dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
-    dimensionFilter: getProdFilter(),
+    ...(filter && { dimensionFilter: filter }),
     metrics: [{ name: 'activeUsers' }]
   });
 
   const [mauResponse] = await client.runReport({
     property: getPropertyId(),
     dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
-    dimensionFilter: getProdFilter(),
+    ...(filter && { dimensionFilter: filter }),
     metrics: [{ name: 'activeUsers' }]
   });
 
@@ -129,10 +139,11 @@ async function getActiveUserMetrics() {
 // Daily active users (last 30 days)
 async function getDailyActiveUsers(days = 30) {
   const client = getClient();
+  const filter = getProdFilter();
   const [response] = await client.runReport({
     property: getPropertyId(),
     dateRanges: [{ startDate: `${days}daysAgo`, endDate: 'today' }],
-    dimensionFilter: getProdFilter(),
+    ...(filter && { dimensionFilter: filter }),
     dimensions: [{ name: 'date' }],
     metrics: [{ name: 'activeUsers' }, { name: 'newUsers' }],
     orderBys: [{ dimension: { dimensionName: 'date' } }]
@@ -148,10 +159,11 @@ async function getDailyActiveUsers(days = 30) {
 // Top events
 async function getTopEvents(limit = 20) {
   const client = getClient();
+  const filter = getProdFilter();
   const [response] = await client.runReport({
     property: getPropertyId(),
     dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
-    dimensionFilter: getProdFilter(),
+    ...(filter && { dimensionFilter: filter }),
     dimensions: [{ name: 'eventName' }],
     metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }],
     orderBys: [{ metric: { metricName: 'eventCount' }, desc: true }],
@@ -168,10 +180,11 @@ async function getTopEvents(limit = 20) {
 // Traffic sources / acquisition
 async function getTrafficSources() {
   const client = getClient();
+  const filter = getProdFilter();
   const [response] = await client.runReport({
     property: getPropertyId(),
     dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
-    dimensionFilter: getProdFilter(),
+    ...(filter && { dimensionFilter: filter }),
     dimensions: [{ name: 'sessionDefaultChannelGroup' }],
     metrics: [{ name: 'sessions' }, { name: 'newUsers' }, { name: 'activeUsers' }],
     orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
@@ -189,10 +202,11 @@ async function getTrafficSources() {
 // Screen views (top screens)
 async function getTopScreens(limit = 10) {
   const client = getClient();
+  const filter = getProdFilter();
   const [response] = await client.runReport({
     property: getPropertyId(),
     dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
-    dimensionFilter: getProdFilter(),
+    ...(filter && { dimensionFilter: filter }),
     dimensions: [{ name: 'unifiedScreenName' }],
     metrics: [{ name: 'screenPageViews' }, { name: 'activeUsers' }],
     orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
@@ -209,10 +223,11 @@ async function getTopScreens(limit = 10) {
 // Country breakdown
 async function getCountryBreakdown(limit = 15) {
   const client = getClient();
+  const filter = getProdFilter();
   const [response] = await client.runReport({
     property: getPropertyId(),
     dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
-    dimensionFilter: getProdFilter(),
+    ...(filter && { dimensionFilter: filter }),
     dimensions: [{ name: 'country' }],
     metrics: [{ name: 'activeUsers' }, { name: 'sessions' }],
     orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
@@ -229,10 +244,11 @@ async function getCountryBreakdown(limit = 15) {
 // Device breakdown
 async function getDeviceBreakdown() {
   const client = getClient();
+  const filter = getProdFilter();
   const [response] = await client.runReport({
     property: getPropertyId(),
     dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
-    dimensionFilter: getProdFilter(),
+    ...(filter && { dimensionFilter: filter }),
     dimensions: [{ name: 'platform' }],
     metrics: [{ name: 'activeUsers' }],
     orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }]
@@ -247,10 +263,11 @@ async function getDeviceBreakdown() {
 // User retention (new vs returning)
 async function getUserRetention() {
   const client = getClient();
+  const filter = getProdFilter();
   const [response] = await client.runReport({
     property: getPropertyId(),
     dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
-    dimensionFilter: getProdFilter(),
+    ...(filter && { dimensionFilter: filter }),
     dimensions: [{ name: 'newVsReturning' }],
     metrics: [{ name: 'activeUsers' }, { name: 'sessions' }]
   });
@@ -275,10 +292,11 @@ async function getUserRetention() {
 // Engagement rate over time
 async function getEngagementTrend(days = 14) {
   const client = getClient();
+  const filter = getProdFilter();
   const [response] = await client.runReport({
     property: getPropertyId(),
     dateRanges: [{ startDate: `${days}daysAgo`, endDate: 'today' }],
-    dimensionFilter: getProdFilter(),
+    ...(filter && { dimensionFilter: filter }),
     dimensions: [{ name: 'date' }],
     metrics: [
       { name: 'sessions' },
@@ -299,7 +317,7 @@ async function getEngagementTrend(days = 14) {
   })) || [];
 }
 
-// Debug function to test without filter and check available dimensions
+// Debug function to test queries and filters
 async function debugTest() {
   const client = getClient();
 
@@ -311,57 +329,23 @@ async function debugTest() {
       dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
       metrics: [{ name: 'activeUsers' }]
     });
-    console.log('Simple query SUCCESS:', response1.rows?.[0]?.metricValues[0].value, 'users');
+    console.log('Simple query SUCCESS:', response1.rows?.[0]?.metricValues[0].value, 'users (all streams)');
   } catch (err) {
     console.log('Simple query FAILED:', err.message);
   }
 
-  // Test 2: Query with appId dimension to see values
-  console.log('=== DEBUG: Checking appId dimension values ===');
+  // Test 2: Query with streamId filter (prod only)
+  console.log('=== DEBUG: Testing query with streamId filter ===');
+  console.log('Filter config:', JSON.stringify(getProdFilter(), null, 2));
   try {
+    const filter = getProdFilter();
     const [response2] = await client.runReport({
       property: getPropertyId(),
       dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
-      dimensions: [{ name: 'appId' }],
-      metrics: [{ name: 'activeUsers' }],
-      limit: 10
-    });
-    console.log('appId values found:');
-    response2.rows?.forEach(row => {
-      console.log('  -', row.dimensionValues[0].value, ':', row.metricValues[0].value, 'users');
-    });
-  } catch (err) {
-    console.log('appId dimension FAILED:', err.message);
-
-    // Try streamId instead
-    console.log('=== DEBUG: Trying streamId dimension ===');
-    try {
-      const [response3] = await client.runReport({
-        property: getPropertyId(),
-        dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
-        dimensions: [{ name: 'streamId' }],
-        metrics: [{ name: 'activeUsers' }],
-        limit: 10
-      });
-      console.log('streamId values found:');
-      response3.rows?.forEach(row => {
-        console.log('  -', row.dimensionValues[0].value, ':', row.metricValues[0].value, 'users');
-      });
-    } catch (err2) {
-      console.log('streamId dimension FAILED:', err2.message);
-    }
-  }
-
-  // Test 3: Query with filter
-  console.log('=== DEBUG: Testing query with appId filter ===');
-  try {
-    const [response4] = await client.runReport({
-      property: getPropertyId(),
-      dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
-      dimensionFilter: getProdFilter(),
+      ...(filter && { dimensionFilter: filter }),
       metrics: [{ name: 'activeUsers' }]
     });
-    console.log('Filtered query SUCCESS:', response4.rows?.[0]?.metricValues[0].value, 'users');
+    console.log('Filtered query SUCCESS:', response2.rows?.[0]?.metricValues[0].value, 'users (prod only)');
   } catch (err) {
     console.log('Filtered query FAILED:', err.message);
   }
