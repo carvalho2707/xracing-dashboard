@@ -56,7 +56,6 @@ function timeAgo(dateStr) {
 function formatDateTime(dateStr) {
   const date = new Date(dateStr);
   return date.toLocaleDateString('en-US', {
-    year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',

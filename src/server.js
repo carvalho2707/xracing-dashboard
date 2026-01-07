@@ -72,6 +72,16 @@ app.get('/api/recording-activity', async (req, res) => {
   }
 });
 
+app.get('/api/cumulative-recording-growth', async (req, res) => {
+  try {
+    const data = await queries.getCumulativeRecordingGrowth();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching cumulative recording growth:', error);
+    res.status(500).json({ error: 'Failed to fetch cumulative recording growth' });
+  }
+});
+
 app.get('/api/top-tracks', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
@@ -101,6 +111,36 @@ app.get('/api/social-metrics', async (req, res) => {
   } catch (error) {
     console.error('Error fetching social metrics:', error);
     res.status(500).json({ error: 'Failed to fetch social metrics' });
+  }
+});
+
+app.get('/api/likes-activity', async (req, res) => {
+  try {
+    const data = await queries.getLikesActivity();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching likes activity:', error);
+    res.status(500).json({ error: 'Failed to fetch likes activity' });
+  }
+});
+
+app.get('/api/comments-activity', async (req, res) => {
+  try {
+    const data = await queries.getCommentsActivity();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching comments activity:', error);
+    res.status(500).json({ error: 'Failed to fetch comments activity' });
+  }
+});
+
+app.get('/api/media-activity', async (req, res) => {
+  try {
+    const data = await queries.getMediaActivity();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching media activity:', error);
+    res.status(500).json({ error: 'Failed to fetch media activity' });
   }
 });
 

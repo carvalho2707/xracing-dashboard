@@ -69,7 +69,7 @@ async function updateRecentActivity() {
           <p class="text-racing-muted text-xs truncate">${activity.track_name || [activity.location_city, activity.location_country].filter(Boolean).join(', ') || 'Unknown'}</p>
         </div>
       </div>
-      <span class="text-racing-muted text-xs whitespace-nowrap ml-2">${timeAgo(activity.created_at)}</span>
+      <span class="text-racing-muted text-xs whitespace-nowrap ml-2">${formatDateTime(activity.created_at)}</span>
     </div>
   `).join('');
 }
@@ -95,7 +95,7 @@ async function updateRecentUsers() {
           <p class="text-racing-muted text-xs truncate">${user.email || '-'}</p>
         </div>
       </div>
-      <span class="text-racing-muted text-xs whitespace-nowrap ml-2">${timeAgo(user.created_at)}</span>
+      <span class="text-racing-muted text-xs whitespace-nowrap ml-2">${formatDateTime(user.created_at)}</span>
     </div>
   `).join('');
 }
@@ -121,7 +121,7 @@ async function updateRecentTracks() {
           </p>
         </div>
       </div>
-      <span class="text-racing-muted text-xs whitespace-nowrap ml-2">${timeAgo(track.created_at)}</span>
+      <span class="text-racing-muted text-xs whitespace-nowrap ml-2">${formatDateTime(track.created_at)}</span>
     </div>
   `).join('');
 }

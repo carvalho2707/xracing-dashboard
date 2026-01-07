@@ -1,7 +1,7 @@
 // KPIs page specific JavaScript
 
 // Chart instances
-let totalUsersChart, newUsersChart, recordingActivityChart, dailyRecordingsChart, geoChart, engagementChart;
+let totalUsersChart, newUsersChart, totalRecordingsChart, newRecordingsChart, likesChart, commentsChart, mediaChart, geoChart, engagementChart;
 
 // Map instances
 let heatmapMap = null;
@@ -99,21 +99,63 @@ async function createNewUsersChart() {
   });
 }
 
-// Create recording activity chart
-async function createRecordingActivityChart() {
+// Create total recordings chart (cumulative)
+async function createTotalRecordingsChart() {
+  const data = await fetchData('cumulative-recording-growth');
+  if (!data || data.length === 0) return;
+
+  const ctx = document.getElementById('totalRecordingsChart').getContext('2d');
+
+  if (totalRecordingsChart) totalRecordingsChart.destroy();
+
+  totalRecordingsChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => formatMonth(d.month)),
+      datasets: [{
+        label: 'Total Recordings',
+        data: data.map(d => parseInt(d.cumulative_total)),
+        borderColor: '#E53935',
+        backgroundColor: 'rgba(229, 57, 53, 0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          grid: { color: 'rgba(48, 54, 61, 0.3)' }
+        },
+        x: {
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+// Create new recordings per month chart
+async function createNewRecordingsChart() {
   const data = await fetchData('recording-activity');
   if (!data || data.length === 0) return;
 
-  const ctx = document.getElementById('recordingActivityChart').getContext('2d');
+  const ctx = document.getElementById('newRecordingsChart').getContext('2d');
 
-  if (recordingActivityChart) recordingActivityChart.destroy();
+  if (newRecordingsChart) newRecordingsChart.destroy();
 
-  recordingActivityChart = new Chart(ctx, {
+  newRecordingsChart = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: data.map(d => formatMonth(d.month)),
       datasets: [{
-        label: 'Recordings',
+        label: 'New Recordings',
         data: data.map(d => parseInt(d.count)),
         backgroundColor: 'rgba(229, 57, 53, 0.8)',
         borderRadius: 4
@@ -138,27 +180,24 @@ async function createRecordingActivityChart() {
   });
 }
 
-// Create daily recordings chart
-async function createDailyRecordingsChart() {
-  const data = await fetchData('daily-recordings');
+// Create likes per month chart
+async function createLikesChart() {
+  const data = await fetchData('likes-activity');
   if (!data || data.length === 0) return;
 
-  const ctx = document.getElementById('dailyRecordingsChart').getContext('2d');
+  const ctx = document.getElementById('likesChart').getContext('2d');
 
-  if (dailyRecordingsChart) dailyRecordingsChart.destroy();
+  if (likesChart) likesChart.destroy();
 
-  dailyRecordingsChart = new Chart(ctx, {
-    type: 'line',
+  likesChart = new Chart(ctx, {
+    type: 'bar',
     data: {
-      labels: data.map(d => formatDate(d.date)),
+      labels: data.map(d => formatMonth(d.month)),
       datasets: [{
-        label: 'Daily Recordings',
+        label: 'Likes',
         data: data.map(d => parseInt(d.count)),
-        borderColor: '#10B981',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 2
+        backgroundColor: 'rgba(236, 72, 153, 0.8)',
+        borderRadius: 4
       }]
     },
     options: {
@@ -173,8 +212,85 @@ async function createDailyRecordingsChart() {
           grid: { color: 'rgba(48, 54, 61, 0.3)' }
         },
         x: {
-          grid: { display: false },
-          ticks: { maxTicksLimit: 10 }
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+// Create comments per month chart
+async function createCommentsChart() {
+  const data = await fetchData('comments-activity');
+  if (!data || data.length === 0) return;
+
+  const ctx = document.getElementById('commentsChart').getContext('2d');
+
+  if (commentsChart) commentsChart.destroy();
+
+  commentsChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => formatMonth(d.month)),
+      datasets: [{
+        label: 'Comments',
+        data: data.map(d => parseInt(d.count)),
+        backgroundColor: 'rgba(6, 182, 212, 0.8)',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(48, 54, 61, 0.3)' }
+        },
+        x: {
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+// Create media uploads per month chart
+async function createMediaChart() {
+  const data = await fetchData('media-activity');
+  if (!data || data.length === 0) return;
+
+  const ctx = document.getElementById('mediaChart').getContext('2d');
+
+  if (mediaChart) mediaChart.destroy();
+
+  mediaChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => formatMonth(d.month)),
+      datasets: [{
+        label: 'Media Uploads',
+        data: data.map(d => parseInt(d.count)),
+        backgroundColor: 'rgba(132, 204, 22, 0.8)',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(48, 54, 61, 0.3)' }
+        },
+        x: {
+          grid: { display: false }
         }
       }
     }
@@ -383,8 +499,11 @@ async function refreshData() {
     updateViewsStats(),
     createTotalUsersChart(),
     createNewUsersChart(),
-    createRecordingActivityChart(),
-    createDailyRecordingsChart(),
+    createTotalRecordingsChart(),
+    createNewRecordingsChart(),
+    createLikesChart(),
+    createCommentsChart(),
+    createMediaChart(),
     createGeoChart(),
     createEngagementChart()
   ]);

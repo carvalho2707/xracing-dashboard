@@ -141,7 +141,7 @@
     <header class="page-header">
       <div class="page-header-content">
         <div class="flex items-center gap-4">
-          <h1 class="page-title">KPIs & Analytics</h1>
+          <h1 class="page-title">KPIs</h1>
         </div>
         <button onclick="refreshData()" class="px-4 py-2 bg-racing-card hover:bg-racing-border text-sm rounded-lg transition-colors">
           Refresh
@@ -216,19 +216,46 @@
 
         <!-- Recording Charts Row -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- Recording Activity Chart -->
+          <!-- Total Recordings Chart -->
           <div class="glass-card rounded-xl p-6">
-            <h3 class="text-lg font-semibold text-white mb-4">Recording Activity</h3>
+            <h3 class="text-lg font-semibold text-white mb-4">Total Recordings (Cumulative)</h3>
             <div class="chart-container">
-              <canvas id="recordingActivityChart"></canvas>
+              <canvas id="totalRecordingsChart"></canvas>
             </div>
           </div>
 
-          <!-- Daily Recordings -->
+          <!-- New Recordings per Month -->
           <div class="glass-card rounded-xl p-6">
-            <h3 class="text-lg font-semibold text-white mb-4">Daily Recordings (Last 30 Days)</h3>
+            <h3 class="text-lg font-semibold text-white mb-4">New Recordings per Month</h3>
             <div class="chart-container">
-              <canvas id="dailyRecordingsChart"></canvas>
+              <canvas id="newRecordingsChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Social Engagement Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Likes per Month -->
+          <div class="glass-card rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-white mb-4">Likes per Month</h3>
+            <div class="chart-container">
+              <canvas id="likesChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Comments per Month -->
+          <div class="glass-card rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-white mb-4">Comments per Month</h3>
+            <div class="chart-container">
+              <canvas id="commentsChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Media Uploads per Month -->
+          <div class="glass-card rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-white mb-4">Media Uploads per Month</h3>
+            <div class="chart-container">
+              <canvas id="mediaChart"></canvas>
             </div>
           </div>
         </div>

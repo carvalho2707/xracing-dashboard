@@ -111,6 +111,32 @@ const queries = {
     return result.rows;
   },
 
+  // Cumulative total recordings over time (last 12 months)
+  async getCumulativeRecordingGrowth() {
+    const result = await db.query(`
+      WITH monthly_counts AS (
+        SELECT
+          DATE_TRUNC('month', created_at) as month,
+          COUNT(*) as new_recordings
+        FROM recordings
+        WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL '12 months'
+        GROUP BY DATE_TRUNC('month', created_at)
+      ),
+      recordings_before AS (
+        SELECT COUNT(*) as count
+        FROM recordings
+        WHERE deleted_at IS NULL AND created_at < DATE_TRUNC('month', NOW() - INTERVAL '11 months')
+      )
+      SELECT
+        mc.month,
+        mc.new_recordings,
+        rb.count + SUM(mc.new_recordings) OVER (ORDER BY mc.month) as cumulative_total
+      FROM monthly_counts mc, recordings_before rb
+      ORDER BY mc.month
+    `);
+    return result.rows;
+  },
+
   // Top tracks by recordings
   async getTopTracks(limit = 10) {
     const result = await db.query(`
@@ -161,6 +187,48 @@ const queries = {
         (SELECT COUNT(*) FROM comments WHERE deleted = false AND created_at >= NOW() - INTERVAL '7 days') as comments_7d
     `);
     return result.rows[0];
+  },
+
+  // Likes per month (last 12 months)
+  async getLikesActivity() {
+    const result = await db.query(`
+      SELECT
+        DATE_TRUNC('month', created_at) as month,
+        COUNT(*) as count
+      FROM likes
+      WHERE created_at >= NOW() - INTERVAL '12 months'
+      GROUP BY DATE_TRUNC('month', created_at)
+      ORDER BY month
+    `);
+    return result.rows;
+  },
+
+  // Comments per month (last 12 months)
+  async getCommentsActivity() {
+    const result = await db.query(`
+      SELECT
+        DATE_TRUNC('month', created_at) as month,
+        COUNT(*) as count
+      FROM comments
+      WHERE deleted = false AND created_at >= NOW() - INTERVAL '12 months'
+      GROUP BY DATE_TRUNC('month', created_at)
+      ORDER BY month
+    `);
+    return result.rows;
+  },
+
+  // Media uploads per month (last 12 months)
+  async getMediaActivity() {
+    const result = await db.query(`
+      SELECT
+        DATE_TRUNC('month', created_at) as month,
+        COUNT(*) as count
+      FROM media
+      WHERE created_at >= NOW() - INTERVAL '12 months'
+      GROUP BY DATE_TRUNC('month', created_at)
+      ORDER BY month
+    `);
+    return result.rows;
   },
 
   // Recording status distribution
