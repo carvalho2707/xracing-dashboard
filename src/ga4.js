@@ -9,23 +9,35 @@ const PROD_APP_ID = 'com.filipecarvalho.xracing8';
 
 function getClient() {
   if (!analyticsClient) {
+    // Log configuration status
+    console.log('=== GA4 Configuration ===');
+    console.log('GA4_PROPERTY_ID:', process.env.GA4_PROPERTY_ID ? `${process.env.GA4_PROPERTY_ID}` : 'NOT SET');
+    console.log('GA4_CREDENTIALS_BASE64:', process.env.GA4_CREDENTIALS_BASE64 ? `SET (${process.env.GA4_CREDENTIALS_BASE64.length} chars)` : 'NOT SET');
+    console.log('GA4_CREDENTIALS_JSON:', process.env.GA4_CREDENTIALS_JSON ? `SET (${process.env.GA4_CREDENTIALS_JSON.length} chars)` : 'NOT SET');
+    console.log('GA4_CREDENTIALS_PATH:', process.env.GA4_CREDENTIALS_PATH || 'NOT SET');
+    console.log('PROD_APP_ID filter:', PROD_APP_ID);
+    console.log('=========================');
+
     // Support: base64 encoded JSON (Railway), raw JSON, or file path (local)
     if (process.env.GA4_CREDENTIALS_BASE64) {
-      // Decode base64 and parse JSON
+      console.log('Using GA4_CREDENTIALS_BASE64 for authentication');
       const decoded = Buffer.from(process.env.GA4_CREDENTIALS_BASE64, 'base64').toString('utf8');
       const credentials = JSON.parse(decoded);
+      console.log('Credentials parsed - project_id:', credentials.project_id, ', client_email:', credentials.client_email);
       analyticsClient = new BetaAnalyticsDataClient({ credentials });
     } else if (process.env.GA4_CREDENTIALS_JSON) {
-      // Parse JSON directly from environment variable
+      console.log('Using GA4_CREDENTIALS_JSON for authentication');
       const credentials = JSON.parse(process.env.GA4_CREDENTIALS_JSON);
+      console.log('Credentials parsed - project_id:', credentials.project_id, ', client_email:', credentials.client_email);
       analyticsClient = new BetaAnalyticsDataClient({ credentials });
     } else if (process.env.GA4_CREDENTIALS_PATH) {
-      // Use file path for local development
+      console.log('Using GA4_CREDENTIALS_PATH for authentication:', process.env.GA4_CREDENTIALS_PATH);
       const credentialsPath = path.resolve(process.env.GA4_CREDENTIALS_PATH);
       analyticsClient = new BetaAnalyticsDataClient({ keyFilename: credentialsPath });
     } else {
       throw new Error('GA4 credentials not configured. Set GA4_CREDENTIALS_BASE64, GA4_CREDENTIALS_JSON, or GA4_CREDENTIALS_PATH');
     }
+    console.log('GA4 client initialized successfully');
   }
   return analyticsClient;
 }
@@ -36,7 +48,7 @@ function getPropertyId() {
 
 // Filter to only include production app (exclude .dev and .qa bundle IDs)
 function getProdFilter() {
-  return {
+  const filter = {
     filter: {
       fieldName: 'appId',
       stringFilter: {
@@ -45,6 +57,8 @@ function getProdFilter() {
       }
     }
   };
+  console.log('GA4 filter:', JSON.stringify(filter));
+  return filter;
 }
 
 // Overview stats (last 30 days)
@@ -285,6 +299,76 @@ async function getEngagementTrend(days = 14) {
   })) || [];
 }
 
+// Debug function to test without filter and check available dimensions
+async function debugTest() {
+  const client = getClient();
+
+  // Test 1: Simple query without filter
+  console.log('=== DEBUG: Testing simple query without filter ===');
+  try {
+    const [response1] = await client.runReport({
+      property: getPropertyId(),
+      dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
+      metrics: [{ name: 'activeUsers' }]
+    });
+    console.log('Simple query SUCCESS:', response1.rows?.[0]?.metricValues[0].value, 'users');
+  } catch (err) {
+    console.log('Simple query FAILED:', err.message);
+  }
+
+  // Test 2: Query with appId dimension to see values
+  console.log('=== DEBUG: Checking appId dimension values ===');
+  try {
+    const [response2] = await client.runReport({
+      property: getPropertyId(),
+      dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
+      dimensions: [{ name: 'appId' }],
+      metrics: [{ name: 'activeUsers' }],
+      limit: 10
+    });
+    console.log('appId values found:');
+    response2.rows?.forEach(row => {
+      console.log('  -', row.dimensionValues[0].value, ':', row.metricValues[0].value, 'users');
+    });
+  } catch (err) {
+    console.log('appId dimension FAILED:', err.message);
+
+    // Try streamId instead
+    console.log('=== DEBUG: Trying streamId dimension ===');
+    try {
+      const [response3] = await client.runReport({
+        property: getPropertyId(),
+        dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
+        dimensions: [{ name: 'streamId' }],
+        metrics: [{ name: 'activeUsers' }],
+        limit: 10
+      });
+      console.log('streamId values found:');
+      response3.rows?.forEach(row => {
+        console.log('  -', row.dimensionValues[0].value, ':', row.metricValues[0].value, 'users');
+      });
+    } catch (err2) {
+      console.log('streamId dimension FAILED:', err2.message);
+    }
+  }
+
+  // Test 3: Query with filter
+  console.log('=== DEBUG: Testing query with appId filter ===');
+  try {
+    const [response4] = await client.runReport({
+      property: getPropertyId(),
+      dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
+      dimensionFilter: getProdFilter(),
+      metrics: [{ name: 'activeUsers' }]
+    });
+    console.log('Filtered query SUCCESS:', response4.rows?.[0]?.metricValues[0].value, 'users');
+  } catch (err) {
+    console.log('Filtered query FAILED:', err.message);
+  }
+
+  return { status: 'debug complete - check server logs' };
+}
+
 module.exports = {
   getOverviewStats,
   getActiveUserMetrics,
@@ -295,5 +379,6 @@ module.exports = {
   getCountryBreakdown,
   getDeviceBreakdown,
   getUserRetention,
-  getEngagementTrend
+  getEngagementTrend,
+  debugTest
 };

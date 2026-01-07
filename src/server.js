@@ -397,6 +397,17 @@ app.get('/api/ga4/engagement', async (req, res) => {
   }
 });
 
+// GA4 Debug endpoint - check server logs for output
+app.get('/api/ga4/debug', async (req, res) => {
+  try {
+    const data = await ga4.debugTest();
+    res.json(data);
+  } catch (error) {
+    console.error('Error in GA4 debug:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
