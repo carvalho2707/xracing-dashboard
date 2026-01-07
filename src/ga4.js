@@ -9,10 +9,18 @@ const PROD_APP_ID = 'com.filipecarvalho.xracing8';
 
 function getClient() {
   if (!analyticsClient) {
-    const credentialsPath = path.resolve(process.env.GA4_CREDENTIALS_PATH);
-    analyticsClient = new BetaAnalyticsDataClient({
-      keyFilename: credentialsPath
-    });
+    // Support both file path (local) and JSON string (Railway/production)
+    if (process.env.GA4_CREDENTIALS_JSON) {
+      // Parse JSON from environment variable
+      const credentials = JSON.parse(process.env.GA4_CREDENTIALS_JSON);
+      analyticsClient = new BetaAnalyticsDataClient({ credentials });
+    } else if (process.env.GA4_CREDENTIALS_PATH) {
+      // Use file path for local development
+      const credentialsPath = path.resolve(process.env.GA4_CREDENTIALS_PATH);
+      analyticsClient = new BetaAnalyticsDataClient({ keyFilename: credentialsPath });
+    } else {
+      throw new Error('GA4 credentials not configured. Set GA4_CREDENTIALS_JSON or GA4_CREDENTIALS_PATH');
+    }
   }
   return analyticsClient;
 }
