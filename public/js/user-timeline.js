@@ -177,7 +177,7 @@ function renderTimeline(data) {
       // Show all params dynamically (excluding system/internal ones)
       const params = event.params || {};
       const excludeParams = [
-        'screen_name', 'firebase_screen', 'action_type', 'ga_session_id', 'ga_session_number',
+        'screen_name', 'firebase_screen', 'action_type', 'timestamp', 'ga_session_id', 'ga_session_number',
         'engaged_session_event', 'firebase_event_origin', 'firebase_screen_class',
         'firebase_screen_id', 'firebase_previous_screen', 'firebase_previous_class',
         'firebase_previous_id', 'entrances', 'session_engaged', 'page_title',
