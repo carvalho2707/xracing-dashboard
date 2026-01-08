@@ -155,6 +155,36 @@
 
       <!-- Dashboard Content -->
       <div id="dashboard" class="hidden">
+        <!-- User Filter -->
+        <div class="glass-card rounded-xl p-4 mb-6">
+          <div class="flex flex-wrap items-center gap-4">
+            <div class="flex items-center gap-2 flex-1 min-w-[200px] max-w-md">
+              <input type="text" id="usernameFilter" placeholder="Filter by username..."
+                class="flex-1 px-4 py-2 bg-racing-dark border border-racing-border rounded-lg text-white placeholder-racing-muted focus:outline-none focus:border-racing-red text-sm">
+              <button onclick="applyUserFilter()" id="filterBtn"
+                class="px-4 py-2 bg-racing-red hover:bg-red-600 text-white font-medium rounded-lg transition-colors text-sm">
+                Filter
+              </button>
+            </div>
+            <div id="activeFilter" class="hidden flex items-center gap-2">
+              <span class="text-sm text-racing-muted">Showing data for:</span>
+              <span id="filterUsername" class="text-sm font-medium text-white px-2 py-1 bg-racing-red/20 rounded"></span>
+              <button onclick="clearUserFilter()" class="text-xs text-racing-muted hover:text-white transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <label for="excludeOwners" class="text-sm text-racing-muted cursor-pointer">Exclude owners</label>
+              <button id="excludeOwnersToggle" onclick="toggleExcludeOwners()"
+                class="relative w-11 h-6 bg-racing-border rounded-full transition-colors focus:outline-none">
+                <span id="excludeOwnersKnob" class="absolute left-1 top-1 w-4 h-4 bg-racing-muted rounded-full transition-transform"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Summary Stats -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div class="glass-card rounded-xl p-4 text-center">

@@ -54,9 +54,19 @@ const getEventParam = (paramName, type = 'string') => {
   return `(SELECT ${valueField} FROM UNNEST(event_params) WHERE key = '${paramName}')`;
 };
 
+// Owner user IDs to exclude from analytics
+const OWNER_USER_IDS = [
+  'hZMCPNFAZddzS7bwqgzb91VOysx2',
+  'ZT87DvPwt3NnWtIlJGmwXRINIvX2',
+  'Kw1RU3ufAAcYlmGgMyWACbn6t6U2',
+];
+
 // Get screen actions with full action_type detail (last 30 days)
-async function getScreenActions(days = 30) {
+async function getScreenActions(days = 30, userId = null, excludeOwners = false) {
   const client = getClient();
+
+  const userFilter = userId ? `AND user_id = @userId` : '';
+  const ownerFilter = excludeOwners ? `AND user_id NOT IN UNNEST(@excludedUsers)` : '';
 
   const query = `
     SELECT
@@ -68,12 +78,18 @@ async function getScreenActions(days = 30) {
     FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
     WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
       AND ${getEventParam('firebase_screen')} IS NOT NULL
+      ${userFilter}
+      ${ownerFilter}
     GROUP BY screen_name, event_name, action_type
     ORDER BY event_count DESC
     LIMIT 2000
   `;
 
-  const [rows] = await client.query({ query });
+  const params = {};
+  if (userId) params.userId = userId;
+  if (excludeOwners) params.excludedUsers = OWNER_USER_IDS;
+  const options = Object.keys(params).length > 0 ? { query, params } : { query };
+  const [rows] = await client.query(options);
 
   // Group by screen
   const screenData = {};
@@ -143,8 +159,11 @@ async function getScreenActions(days = 30) {
 }
 
 // Get detailed actions for a specific screen
-async function getScreenActionDetails(screenName, days = 30) {
+async function getScreenActionDetails(screenName, days = 30, userId = null, excludeOwners = false) {
   const client = getClient();
+
+  const userFilter = userId ? `AND user_id = @userId` : '';
+  const ownerFilter = excludeOwners ? `AND user_id NOT IN UNNEST(@excludedUsers)` : '';
 
   const query = `
     SELECT
@@ -155,15 +174,17 @@ async function getScreenActionDetails(screenName, days = 30) {
     FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
     WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
       AND ${getEventParam('firebase_screen')} = @screenName
+      ${userFilter}
+      ${ownerFilter}
     GROUP BY event_name, action_type
     ORDER BY event_count DESC
     LIMIT 100
   `;
 
-  const [rows] = await client.query({
-    query,
-    params: { screenName }
-  });
+  const params = { screenName };
+  if (userId) params.userId = userId;
+  if (excludeOwners) params.excludedUsers = OWNER_USER_IDS;
+  const [rows] = await client.query({ query, params });
 
   // Aggregate actions, separate screen_view
   const actionsMap = {};

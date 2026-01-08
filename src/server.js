@@ -508,7 +508,9 @@ app.get('/api/ga4/user-events', async (req, res) => {
 app.get('/api/ga4/screen-actions', async (req, res) => {
   try {
     const days = parseInt(req.query.days) || 30;
-    const data = await bigquery.getScreenActions(days);
+    const userId = req.query.userId || null;
+    const excludeOwners = req.query.excludeOwners === 'true';
+    const data = await bigquery.getScreenActions(days, userId, excludeOwners);
     res.json(data);
   } catch (error) {
     console.error('Error fetching screen actions:', error);
@@ -521,7 +523,9 @@ app.get('/api/ga4/screen-actions/:screenName', async (req, res) => {
   try {
     const { screenName } = req.params;
     const days = parseInt(req.query.days) || 30;
-    const data = await bigquery.getScreenActionDetails(screenName, days);
+    const userId = req.query.userId || null;
+    const excludeOwners = req.query.excludeOwners === 'true';
+    const data = await bigquery.getScreenActionDetails(screenName, days, userId, excludeOwners);
     res.json(data);
   } catch (error) {
     console.error('Error fetching screen action details:', error);

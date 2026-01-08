@@ -1,6 +1,9 @@
 // Screen Analysis page JavaScript
 
 let screensData = [];
+let currentUserId = null;
+let currentUsername = null;
+let excludeOwners = false;
 
 // Get color for action based on action label (action_type or eventName)
 function getActionColor(actionLabel) {
@@ -109,8 +112,26 @@ function renderScreenCard(screen, maxEvents) {
 
 // Load and render all screens
 async function loadScreens() {
-  const data = await fetchData('ga4/screen-actions?limit=30');
-  if (!data || data.length === 0) return;
+  let url = 'ga4/screen-actions?limit=30';
+  if (currentUserId) {
+    url += `&userId=${encodeURIComponent(currentUserId)}`;
+  }
+  if (excludeOwners) {
+    url += '&excludeOwners=true';
+  }
+  const data = await fetchData(url);
+  if (!data || data.length === 0) {
+    document.getElementById('screensGrid').innerHTML = `
+      <div class="col-span-full text-center py-10 text-racing-muted">
+        ${currentUserId ? 'No screen data found for this user' : 'No screen data available'}
+      </div>
+    `;
+    document.getElementById('totalScreens').textContent = '0';
+    document.getElementById('totalEventsCount').textContent = '0';
+    document.getElementById('uniqueActions').textContent = '0';
+    document.getElementById('avgEventsPerScreen').textContent = '0';
+    return;
+  }
 
   screensData = data;
 
@@ -144,7 +165,18 @@ async function openScreenDetail(screenName) {
   document.getElementById('modalScreenName').textContent = formatScreenName(screenName);
 
   try {
-    const data = await fetchData(`ga4/screen-actions/${encodeURIComponent(screenName)}`);
+    let url = `ga4/screen-actions/${encodeURIComponent(screenName)}`;
+    const params = [];
+    if (currentUserId) {
+      params.push(`userId=${encodeURIComponent(currentUserId)}`);
+    }
+    if (excludeOwners) {
+      params.push('excludeOwners=true');
+    }
+    if (params.length > 0) {
+      url += '?' + params.join('&');
+    }
+    const data = await fetchData(url);
 
     if (!data) {
       closeModal();
@@ -217,6 +249,83 @@ document.getElementById('screenModal')?.addEventListener('click', (e) => {
   }
 });
 
+// Toggle exclude owners
+async function toggleExcludeOwners() {
+  excludeOwners = !excludeOwners;
+
+  // Update toggle UI
+  const toggle = document.getElementById('excludeOwnersToggle');
+  const knob = document.getElementById('excludeOwnersKnob');
+
+  if (excludeOwners) {
+    toggle.classList.remove('bg-racing-border');
+    toggle.classList.add('bg-racing-red');
+    knob.classList.remove('bg-racing-muted');
+    knob.classList.add('bg-white');
+    knob.style.transform = 'translateX(20px)';
+  } else {
+    toggle.classList.remove('bg-racing-red');
+    toggle.classList.add('bg-racing-border');
+    knob.classList.remove('bg-white');
+    knob.classList.add('bg-racing-muted');
+    knob.style.transform = 'translateX(0)';
+  }
+
+  // Reload data with new setting
+  await refreshData();
+}
+
+// Apply user filter
+async function applyUserFilter() {
+  const username = document.getElementById('usernameFilter').value.trim();
+  if (!username) return;
+
+  document.getElementById('filterBtn').disabled = true;
+  document.getElementById('filterBtn').textContent = 'Loading...';
+
+  try {
+    // Look up user by username
+    const user = await fetchData(`users/lookup?username=${encodeURIComponent(username)}`);
+    if (!user || !user.id) {
+      alert('User not found');
+      return;
+    }
+
+    currentUserId = user.id;
+    currentUsername = user.username;
+
+    // Update UI to show active filter
+    document.getElementById('activeFilter').classList.remove('hidden');
+    document.getElementById('filterUsername').textContent = currentUsername;
+
+    // Reload data with filter
+    await refreshData();
+
+  } catch (error) {
+    console.error('Error applying filter:', error);
+    alert('Error looking up user');
+  } finally {
+    document.getElementById('filterBtn').disabled = false;
+    document.getElementById('filterBtn').textContent = 'Filter';
+  }
+}
+
+// Clear user filter
+async function clearUserFilter() {
+  currentUserId = null;
+  currentUsername = null;
+  document.getElementById('usernameFilter').value = '';
+  document.getElementById('activeFilter').classList.add('hidden');
+  await refreshData();
+}
+
+// Handle enter key on username input
+document.getElementById('usernameFilter')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    applyUserFilter();
+  }
+});
+
 // Refresh data
 async function refreshData() {
   document.getElementById('loading').classList.remove('hidden');
@@ -231,5 +340,9 @@ async function refreshData() {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', refreshData);
 
-// Auto-refresh every 5 minutes
-setInterval(refreshData, 300000);
+// Auto-refresh every 5 minutes (only if no filter active)
+setInterval(() => {
+  if (!currentUserId) {
+    refreshData();
+  }
+}, 300000);
