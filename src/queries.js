@@ -610,6 +610,297 @@ const queries = {
       LIMIT $1
     `, [limit]);
     return result.rows;
+  },
+
+  // ============================================
+  // PRODUCT ANALYTICS - Tier 1: Survival Metrics
+  // ============================================
+
+  // Activation rate: % of users who completed at least 1 recording
+  async getActivationMetrics() {
+    const result = await db.query(`
+      WITH user_activation AS (
+        SELECT
+          u.id,
+          u.created_at as signup_date,
+          MIN(r.created_at) as first_recording_date,
+          CASE WHEN COUNT(r.id) > 0 THEN true ELSE false END as is_activated
+        FROM users u
+        LEFT JOIN recordings r ON u.id = r.driver_id AND r.deleted_at IS NULL AND r.status = 2
+        GROUP BY u.id, u.created_at
+      )
+      SELECT
+        COUNT(*) as total_users,
+        COUNT(*) FILTER (WHERE is_activated) as activated_users,
+        ROUND(COUNT(*) FILTER (WHERE is_activated)::numeric / NULLIF(COUNT(*), 0) * 100, 1) as activation_rate,
+        -- Last 7 days cohort
+        COUNT(*) FILTER (WHERE signup_date >= NOW() - INTERVAL '7 days') as signups_7d,
+        COUNT(*) FILTER (WHERE signup_date >= NOW() - INTERVAL '7 days' AND is_activated) as activated_7d,
+        ROUND(
+          COUNT(*) FILTER (WHERE signup_date >= NOW() - INTERVAL '7 days' AND is_activated)::numeric /
+          NULLIF(COUNT(*) FILTER (WHERE signup_date >= NOW() - INTERVAL '7 days'), 0) * 100, 1
+        ) as activation_rate_7d,
+        -- Last 30 days cohort
+        COUNT(*) FILTER (WHERE signup_date >= NOW() - INTERVAL '30 days') as signups_30d,
+        COUNT(*) FILTER (WHERE signup_date >= NOW() - INTERVAL '30 days' AND is_activated) as activated_30d,
+        ROUND(
+          COUNT(*) FILTER (WHERE signup_date >= NOW() - INTERVAL '30 days' AND is_activated)::numeric /
+          NULLIF(COUNT(*) FILTER (WHERE signup_date >= NOW() - INTERVAL '30 days'), 0) * 100, 1
+        ) as activation_rate_30d
+      FROM user_activation
+    `);
+    return result.rows[0];
+  },
+
+  // D1/D7/D30 Retention - cohort based
+  async getRetentionCohorts() {
+    const result = await db.query(`
+      WITH user_cohorts AS (
+        SELECT
+          u.id as user_id,
+          u.created_at::date as signup_date,
+          DATE_TRUNC('day', NOW())::date - u.created_at::date as days_since_signup
+        FROM users u
+      ),
+      user_activity AS (
+        SELECT
+          uc.user_id,
+          uc.signup_date,
+          uc.days_since_signup,
+          -- Check if user had any recording on day 1 (next day after signup)
+          EXISTS (
+            SELECT 1 FROM recordings r
+            WHERE r.driver_id = uc.user_id
+              AND r.deleted_at IS NULL
+              AND r.created_at::date = uc.signup_date + INTERVAL '1 day'
+          ) as active_d1,
+          -- Check if user had any recording between day 1-7
+          EXISTS (
+            SELECT 1 FROM recordings r
+            WHERE r.driver_id = uc.user_id
+              AND r.deleted_at IS NULL
+              AND r.created_at::date > uc.signup_date
+              AND r.created_at::date <= uc.signup_date + INTERVAL '7 days'
+          ) as active_d7,
+          -- Check if user had any recording between day 1-30
+          EXISTS (
+            SELECT 1 FROM recordings r
+            WHERE r.driver_id = uc.user_id
+              AND r.deleted_at IS NULL
+              AND r.created_at::date > uc.signup_date
+              AND r.created_at::date <= uc.signup_date + INTERVAL '30 days'
+          ) as active_d30
+        FROM user_cohorts uc
+      )
+      SELECT
+        -- D1 retention (users who signed up 1+ days ago)
+        COUNT(*) FILTER (WHERE days_since_signup >= 1) as eligible_d1,
+        COUNT(*) FILTER (WHERE days_since_signup >= 1 AND active_d1) as retained_d1,
+        ROUND(
+          COUNT(*) FILTER (WHERE days_since_signup >= 1 AND active_d1)::numeric /
+          NULLIF(COUNT(*) FILTER (WHERE days_since_signup >= 1), 0) * 100, 1
+        ) as retention_d1,
+        -- D7 retention (users who signed up 7+ days ago)
+        COUNT(*) FILTER (WHERE days_since_signup >= 7) as eligible_d7,
+        COUNT(*) FILTER (WHERE days_since_signup >= 7 AND active_d7) as retained_d7,
+        ROUND(
+          COUNT(*) FILTER (WHERE days_since_signup >= 7 AND active_d7)::numeric /
+          NULLIF(COUNT(*) FILTER (WHERE days_since_signup >= 7), 0) * 100, 1
+        ) as retention_d7,
+        -- D30 retention (users who signed up 30+ days ago)
+        COUNT(*) FILTER (WHERE days_since_signup >= 30) as eligible_d30,
+        COUNT(*) FILTER (WHERE days_since_signup >= 30 AND active_d30) as retained_d30,
+        ROUND(
+          COUNT(*) FILTER (WHERE days_since_signup >= 30 AND active_d30)::numeric /
+          NULLIF(COUNT(*) FILTER (WHERE days_since_signup >= 30), 0) * 100, 1
+        ) as retention_d30
+      FROM user_activity
+    `);
+    return result.rows[0];
+  },
+
+  // DAU/WAU/MAU from database (users who recorded)
+  async getActiveUsersDB(days = 7) {
+    const result = await db.query(`
+      SELECT
+        -- DAU: users who recorded today
+        COUNT(DISTINCT driver_id) FILTER (WHERE created_at::date = CURRENT_DATE) as dau,
+        -- WAU: users who recorded in last 7 days
+        COUNT(DISTINCT driver_id) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as wau,
+        -- MAU: users who recorded in last 30 days
+        COUNT(DISTINCT driver_id) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') as mau
+      FROM recordings
+      WHERE deleted_at IS NULL
+    `);
+    const row = result.rows[0];
+    return {
+      dau: parseInt(row.dau) || 0,
+      wau: parseInt(row.wau) || 0,
+      mau: parseInt(row.mau) || 0,
+      stickiness: row.wau > 0 ? Math.round((row.dau / row.wau) * 100) : 0,
+      stickiness_mau: row.mau > 0 ? Math.round((row.dau / row.mau) * 100) : 0
+    };
+  },
+
+  // Daily active users trend (for chart)
+  async getDailyActiveUsersTrend(days = 7) {
+    const result = await db.query(`
+      WITH date_series AS (
+        SELECT generate_series(
+          CURRENT_DATE - INTERVAL '${days - 1} days',
+          CURRENT_DATE,
+          '1 day'::interval
+        )::date as date
+      ),
+      daily_activity AS (
+        SELECT
+          created_at::date as date,
+          COUNT(DISTINCT driver_id) as active_users
+        FROM recordings
+        WHERE deleted_at IS NULL
+          AND created_at >= NOW() - INTERVAL '${days} days'
+        GROUP BY created_at::date
+      ),
+      daily_signups AS (
+        SELECT
+          created_at::date as date,
+          COUNT(*) as new_users
+        FROM users
+        WHERE created_at >= NOW() - INTERVAL '${days} days'
+        GROUP BY created_at::date
+      )
+      SELECT
+        ds.date,
+        COALESCE(da.active_users, 0) as active_users,
+        COALESCE(dns.new_users, 0) as new_users
+      FROM date_series ds
+      LEFT JOIN daily_activity da ON ds.date = da.date
+      LEFT JOIN daily_signups dns ON ds.date = dns.date
+      ORDER BY ds.date
+    `, []);
+    return result.rows;
+  },
+
+  // ============================================
+  // PRODUCT ANALYTICS - Tier 2: Growth Health
+  // ============================================
+
+  // Daily signups trend
+  async getDailySignups(days = 7) {
+    const result = await db.query(`
+      WITH date_series AS (
+        SELECT generate_series(
+          CURRENT_DATE - INTERVAL '${days - 1} days',
+          CURRENT_DATE,
+          '1 day'::interval
+        )::date as date
+      )
+      SELECT
+        ds.date,
+        COUNT(u.id) as signups
+      FROM date_series ds
+      LEFT JOIN users u ON u.created_at::date = ds.date
+      GROUP BY ds.date
+      ORDER BY ds.date
+    `, []);
+    return result.rows;
+  },
+
+  // Recordings per active user
+  async getRecordingsPerUser() {
+    const result = await db.query(`
+      WITH active_users AS (
+        SELECT
+          driver_id,
+          COUNT(*) as recording_count
+        FROM recordings
+        WHERE deleted_at IS NULL
+          AND created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY driver_id
+      )
+      SELECT
+        COUNT(*) as active_users,
+        SUM(recording_count) as total_recordings,
+        ROUND(AVG(recording_count)::numeric, 2) as avg_recordings_per_user,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY recording_count) as median_recordings,
+        MAX(recording_count) as max_recordings
+      FROM active_users
+    `);
+    return result.rows[0];
+  },
+
+  // ============================================
+  // PRODUCT ANALYTICS - Tier 3: Engagement Depth
+  // ============================================
+
+  // Social engagement metrics per active user
+  async getSocialEngagementRate() {
+    const result = await db.query(`
+      WITH active_users AS (
+        SELECT DISTINCT driver_id as user_id
+        FROM recordings
+        WHERE deleted_at IS NULL
+          AND created_at >= NOW() - INTERVAL '30 days'
+      ),
+      social_activity AS (
+        SELECT
+          (SELECT COUNT(*) FROM likes WHERE created_at >= NOW() - INTERVAL '30 days') as total_likes,
+          (SELECT COUNT(*) FROM comments WHERE deleted = false AND created_at >= NOW() - INTERVAL '30 days') as total_comments,
+          (SELECT COUNT(*) FROM user_relationships WHERE relationship_type = 'following' AND status = 'active' AND created_at >= NOW() - INTERVAL '30 days') as total_follows
+      )
+      SELECT
+        (SELECT COUNT(*) FROM active_users) as active_users,
+        sa.total_likes,
+        sa.total_comments,
+        sa.total_follows,
+        sa.total_likes + sa.total_comments + sa.total_follows as total_social_actions,
+        ROUND((sa.total_likes + sa.total_comments + sa.total_follows)::numeric / NULLIF((SELECT COUNT(*) FROM active_users), 0), 2) as actions_per_user
+      FROM social_activity sa
+    `);
+    return result.rows[0];
+  },
+
+  // Lookup user by username (for User Timeline feature)
+  async getUserByUsername(username) {
+    const result = await db.query(`
+      SELECT id, username, first_name, last_name, email, created_at
+      FROM users
+      WHERE username ILIKE $1
+      LIMIT 1
+    `, [username]);
+    return result.rows[0] || null;
+  },
+
+  // Feature adoption rates
+  async getFeatureAdoption() {
+    const result = await db.query(`
+      WITH total_users AS (
+        SELECT COUNT(*) as count FROM users
+      ),
+      active_users_30d AS (
+        SELECT COUNT(DISTINCT driver_id) as count
+        FROM recordings
+        WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL '30 days'
+      )
+      SELECT
+        -- Track creators
+        (SELECT COUNT(DISTINCT creator_id) FROM tracks) as track_creators,
+        ROUND((SELECT COUNT(DISTINCT creator_id) FROM tracks)::numeric / NULLIF((SELECT count FROM total_users), 0) * 100, 1) as track_creator_rate,
+        -- Users who liked something
+        (SELECT COUNT(DISTINCT user_id) FROM likes) as users_who_liked,
+        ROUND((SELECT COUNT(DISTINCT user_id) FROM likes)::numeric / NULLIF((SELECT count FROM total_users), 0) * 100, 1) as like_adoption_rate,
+        -- Users who commented
+        (SELECT COUNT(DISTINCT user_id) FROM comments WHERE deleted = false) as users_who_commented,
+        ROUND((SELECT COUNT(DISTINCT user_id) FROM comments WHERE deleted = false)::numeric / NULLIF((SELECT count FROM total_users), 0) * 100, 1) as comment_adoption_rate,
+        -- Users who follow someone
+        (SELECT COUNT(DISTINCT user_id) FROM user_relationships WHERE relationship_type = 'following' AND status = 'active') as users_who_follow,
+        ROUND((SELECT COUNT(DISTINCT user_id) FROM user_relationships WHERE relationship_type = 'following' AND status = 'active')::numeric / NULLIF((SELECT count FROM total_users), 0) * 100, 1) as follow_adoption_rate,
+        -- Users who uploaded media
+        (SELECT COUNT(DISTINCT driver_id) FROM media) as users_with_media,
+        ROUND((SELECT COUNT(DISTINCT driver_id) FROM media)::numeric / NULLIF((SELECT count FROM total_users), 0) * 100, 1) as media_adoption_rate
+      FROM total_users
+    `);
+    return result.rows[0];
   }
 };
 

@@ -6,7 +6,10 @@
       "Bash(node test-play-api.js:*)",
       "WebFetch(domain:developers.google.com)",
       "Bash(npm uninstall:*)",
-      "Bash(node test-ga4-api.js:*)"
+      "Bash(node test-ga4-api.js:*)",
+      "Bash(node -e:*)",
+      "Bash(pkill:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []

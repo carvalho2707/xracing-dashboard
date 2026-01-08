@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const queries = require('./queries');
 const ga4 = require('./ga4');
+const bigquery = require('./bigquery');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -445,6 +446,192 @@ app.get('/api/ga4/debug', async (req, res) => {
   } catch (error) {
     console.error('Error in GA4 debug:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// User Timeline & Screen Analysis API Routes
+// ============================================
+
+// Lookup user by username
+app.get('/api/users/lookup', async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+    const user = await queries.getUserByUsername(username);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error('Error looking up user:', error);
+    res.status(500).json({ error: 'Failed to lookup user' });
+  }
+});
+
+// ============================================
+// BigQuery Routes (for detailed event analysis)
+// ============================================
+
+// Test BigQuery connection
+app.get('/api/bigquery/test', async (req, res) => {
+  try {
+    const result = await bigquery.testConnection();
+    res.json(result);
+  } catch (error) {
+    console.error('BigQuery test error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get user events timeline from BigQuery (with exact timestamps!)
+app.get('/api/ga4/user-events', async (req, res) => {
+  try {
+    const { userId, startDate, endDate } = req.query;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+    // Default to last 7 days
+    const end = endDate || new Date().toISOString().split('T')[0];
+    const start = startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const data = await bigquery.getUserEvents(userId, start, end);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching user events:', error);
+    res.status(500).json({ error: 'Failed to fetch user events' });
+  }
+});
+
+// Get all screens with their actions (from BigQuery - full action_type access)
+app.get('/api/ga4/screen-actions', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const data = await bigquery.getScreenActions(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching screen actions:', error);
+    res.status(500).json({ error: 'Failed to fetch screen actions' });
+  }
+});
+
+// Get detailed actions for a specific screen
+app.get('/api/ga4/screen-actions/:screenName', async (req, res) => {
+  try {
+    const { screenName } = req.params;
+    const days = parseInt(req.query.days) || 30;
+    const data = await bigquery.getScreenActionDetails(screenName, days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching screen action details:', error);
+    res.status(500).json({ error: 'Failed to fetch screen action details' });
+  }
+});
+
+// Get all action_types in the system
+app.get('/api/bigquery/action-types', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const data = await bigquery.getAllActionTypes(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching action types:', error);
+    res.status(500).json({ error: 'Failed to fetch action types' });
+  }
+});
+
+// ============================================
+// Product Analytics API Routes (Tier 1/2/3)
+// ============================================
+
+// Tier 1: Activation metrics
+app.get('/api/analytics/activation', async (req, res) => {
+  try {
+    const data = await queries.getActivationMetrics();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching activation metrics:', error);
+    res.status(500).json({ error: 'Failed to fetch activation metrics' });
+  }
+});
+
+// Tier 1: Retention cohorts (D1/D7/D30)
+app.get('/api/analytics/retention', async (req, res) => {
+  try {
+    const data = await queries.getRetentionCohorts();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching retention cohorts:', error);
+    res.status(500).json({ error: 'Failed to fetch retention cohorts' });
+  }
+});
+
+// Tier 1: DAU/WAU/MAU stickiness
+app.get('/api/analytics/active-users', async (req, res) => {
+  try {
+    const data = await queries.getActiveUsersDB();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching active users:', error);
+    res.status(500).json({ error: 'Failed to fetch active users' });
+  }
+});
+
+// Tier 1: Daily active users trend
+app.get('/api/analytics/daily-active', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 7;
+    const data = await queries.getDailyActiveUsersTrend(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching daily active users:', error);
+    res.status(500).json({ error: 'Failed to fetch daily active users' });
+  }
+});
+
+// Tier 2: Daily signups
+app.get('/api/analytics/signups', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 7;
+    const data = await queries.getDailySignups(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching daily signups:', error);
+    res.status(500).json({ error: 'Failed to fetch daily signups' });
+  }
+});
+
+// Tier 2: Recordings per user
+app.get('/api/analytics/recordings-per-user', async (req, res) => {
+  try {
+    const data = await queries.getRecordingsPerUser();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching recordings per user:', error);
+    res.status(500).json({ error: 'Failed to fetch recordings per user' });
+  }
+});
+
+// Tier 3: Social engagement rate
+app.get('/api/analytics/social-engagement', async (req, res) => {
+  try {
+    const data = await queries.getSocialEngagementRate();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching social engagement:', error);
+    res.status(500).json({ error: 'Failed to fetch social engagement' });
+  }
+});
+
+// Tier 3: Feature adoption
+app.get('/api/analytics/feature-adoption', async (req, res) => {
+  try {
+    const data = await queries.getFeatureAdoption();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching feature adoption:', error);
+    res.status(500).json({ error: 'Failed to fetch feature adoption' });
   }
 });
 

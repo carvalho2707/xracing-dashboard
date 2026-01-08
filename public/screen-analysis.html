@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Live Monitoring - xracing dashboard</title>
+  <title>Screen Analysis - xracing dashboard</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -44,12 +44,28 @@
       backdrop-filter: blur(10px);
       border: 1px solid rgba(48, 54, 61, 0.5);
     }
-    .pulse-dot {
-      animation: pulse 2s infinite;
+    .screen-card {
+      background: linear-gradient(145deg, rgba(22, 27, 34, 0.9), rgba(13, 17, 23, 0.9));
+      border: 1px solid rgba(48, 54, 61, 0.6);
+      transition: all 0.2s ease;
     }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+    .screen-card:hover {
+      border-color: rgba(229, 57, 53, 0.5);
+      transform: translateY(-2px);
+    }
+    .screen-card.expanded {
+      border-color: rgba(229, 57, 53, 0.8);
+    }
+    .action-bar {
+      height: 6px;
+      background: rgba(48, 54, 61, 0.3);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .action-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s ease;
     }
   </style>
 </head>
@@ -74,7 +90,7 @@
         </svg>
         <span>Home</span>
       </a>
-      <a href="/live.html" class="active">
+      <a href="/live.html">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z"/>
         </svg>
@@ -104,7 +120,7 @@
         </svg>
         <span>User Timeline</span>
       </a>
-      <a href="/screen-analysis.html">
+      <a href="/screen-analysis.html" class="active">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
         </svg>
@@ -122,8 +138,8 @@
     <header class="page-header">
       <div class="page-header-content">
         <div class="flex items-center gap-4">
-          <h1 class="page-title">Live Monitoring</h1>
-          <span class="text-xs text-racing-muted">Auto-refreshes every 30s</span>
+          <h1 class="page-title">Screen Analysis</h1>
+          <span class="text-xs text-racing-muted px-2 py-1 bg-racing-card rounded">Last 30 days</span>
         </div>
         <button onclick="refreshData()" class="px-4 py-2 bg-racing-card hover:bg-racing-border text-sm rounded-lg transition-colors">
           Refresh
@@ -138,83 +154,70 @@
       </div>
 
       <!-- Dashboard Content -->
-      <div id="dashboard" class="hidden space-y-6">
-        <!-- Live Status Cards -->
-        <div class="glass-card rounded-xl p-6">
-          <div class="flex items-center mb-6">
-            <span class="pulse-dot w-3 h-3 bg-red-500 rounded-full mr-3"></span>
-            <h2 class="text-xl font-bold text-white">Live Status</h2>
+      <div id="dashboard" class="hidden">
+        <!-- Summary Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="glass-card rounded-xl p-4 text-center">
+            <p class="text-racing-muted text-xs mb-1">Total Screens</p>
+            <p id="totalScreens" class="text-2xl font-bold text-white">-</p>
           </div>
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-6">
-            <div class="text-center">
-              <p id="liveCount" class="text-4xl font-bold text-red-500">-</p>
-              <p class="text-sm text-racing-muted mt-1">Live</p>
-            </div>
-            <div class="text-center">
-              <p id="uploadingCount" class="text-4xl font-bold text-yellow-500">-</p>
-              <p class="text-sm text-racing-muted mt-1">Uploading</p>
-            </div>
-            <div class="text-center">
-              <p id="endedCount" class="text-4xl font-bold text-green-500">-</p>
-              <p class="text-sm text-racing-muted mt-1">Ended</p>
-            </div>
-            <div class="text-center md:border-l md:border-racing-border md:pl-6">
-              <p id="liveDrivers" class="text-4xl font-bold text-white">-</p>
-              <p class="text-sm text-racing-muted mt-1">Drivers</p>
-            </div>
-            <div class="text-center">
-              <p id="liveTracks" class="text-4xl font-bold text-white">-</p>
-              <p class="text-sm text-racing-muted mt-1">Tracks</p>
-            </div>
+          <div class="glass-card rounded-xl p-4 text-center">
+            <p class="text-racing-muted text-xs mb-1">Total Events</p>
+            <p id="totalEventsCount" class="text-2xl font-bold text-racing-red">-</p>
+          </div>
+          <div class="glass-card rounded-xl p-4 text-center">
+            <p class="text-racing-muted text-xs mb-1">Unique Actions</p>
+            <p id="uniqueActions" class="text-2xl font-bold text-white">-</p>
+          </div>
+          <div class="glass-card rounded-xl p-4 text-center">
+            <p class="text-racing-muted text-xs mb-1">Avg Events/Screen</p>
+            <p id="avgEventsPerScreen" class="text-2xl font-bold text-white">-</p>
           </div>
         </div>
 
-        <!-- Live Monitoring Table -->
-        <div class="glass-card rounded-xl p-6">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center">
-              <span class="pulse-dot w-2 h-2 bg-red-500 rounded-full mr-2"></span>
-              <h3 class="text-lg font-semibold text-white">Active Recordings</h3>
-            </div>
-            <span id="activeCount" class="text-sm text-racing-muted">- recordings</span>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead>
-                <tr class="text-racing-muted text-sm border-b border-racing-border">
-                  <th class="text-left py-3 px-2">Driver</th>
-                  <th class="text-left py-3 px-2">Track/Location</th>
-                  <th class="text-left py-3 px-2">Start Time</th>
-                  <th class="text-left py-3 px-2">Status</th>
-                </tr>
-              </thead>
-              <tbody id="liveMonitoringTable">
-                <tr><td colspan="4" class="py-8 text-center text-racing-muted">Loading...</td></tr>
-              </tbody>
-            </table>
-          </div>
+        <!-- Screen Cards Grid -->
+        <div id="screensGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Screen cards will be inserted here -->
         </div>
+      </div>
 
-        <!-- Recent Activity Sections -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- Recent Recordings -->
-          <div class="glass-card rounded-xl p-6">
-            <h3 class="text-lg font-semibold text-white mb-4">Recent Recordings</h3>
-            <div id="recentActivity" class="space-y-3 max-h-96 overflow-y-auto">
+      <!-- Screen Detail Modal -->
+      <div id="screenModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+          <div class="p-6 border-b border-racing-border flex items-center justify-between">
+            <div>
+              <h2 id="modalScreenName" class="text-xl font-semibold text-white">-</h2>
+              <p class="text-sm text-racing-muted">Action breakdown</p>
             </div>
+            <button onclick="closeModal()" class="p-2 hover:bg-racing-border rounded-lg transition-colors">
+              <svg class="w-5 h-5 text-racing-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
           </div>
-
-          <!-- Recent Users -->
-          <div class="glass-card rounded-xl p-6">
-            <h3 class="text-lg font-semibold text-white mb-4">Recent Users</h3>
-            <div id="recentUsers" class="space-y-3 max-h-96 overflow-y-auto">
+          <div class="p-6 overflow-y-auto max-h-[60vh]">
+            <div id="modalLoading" class="flex items-center justify-center py-10">
+              <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-racing-red"></div>
             </div>
-          </div>
-
-          <!-- Recent Tracks -->
-          <div class="glass-card rounded-xl p-6">
-            <h3 class="text-lg font-semibold text-white mb-4">Recent Tracks</h3>
-            <div id="recentTracks" class="space-y-3 max-h-96 overflow-y-auto">
+            <div id="modalContent" class="hidden">
+              <div class="flex gap-6 mb-6">
+                <div class="text-center">
+                  <p class="text-2xl font-bold text-blue-400" id="modalScreenViews">-</p>
+                  <p class="text-xs text-racing-muted">Screen Views</p>
+                </div>
+                <div class="text-center">
+                  <p class="text-2xl font-bold text-white" id="modalTotalEvents">-</p>
+                  <p class="text-xs text-racing-muted">Total Events</p>
+                </div>
+                <div class="text-center">
+                  <p class="text-2xl font-bold text-green-400" id="modalTotalUsers">-</p>
+                  <p class="text-xs text-racing-muted">Unique Users</p>
+                </div>
+              </div>
+              <h3 class="text-sm font-medium text-white mb-3">All Actions</h3>
+              <div id="modalActions" class="space-y-3">
+                <!-- Actions will be inserted here -->
+              </div>
             </div>
           </div>
         </div>
@@ -223,6 +226,6 @@
   </div>
 
   <script src="/js/shared.js"></script>
-  <script src="/js/live.js"></script>
+  <script src="/js/screen-analysis.js"></script>
 </body>
 </html>

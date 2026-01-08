@@ -353,6 +353,331 @@ async function debugTest() {
   return { status: 'debug complete - check server logs' };
 }
 
+// ============================================
+// User Timeline & Screen Analysis Queries
+// ============================================
+
+// Get all events for a specific user within a date range
+async function getUserEvents(userId, startDate, endDate) {
+  const client = getClient();
+  const prodFilter = getProdFilter();
+
+  // Combine prod filter with user filter
+  const userFilter = {
+    filter: {
+      fieldName: 'customUser:user_id',
+      stringFilter: {
+        matchType: 'EXACT',
+        value: userId
+      }
+    }
+  };
+
+  // Build combined filter
+  let dimensionFilter;
+  if (prodFilter) {
+    dimensionFilter = {
+      andGroup: {
+        expressions: [prodFilter, userFilter]
+      }
+    };
+  } else {
+    dimensionFilter = userFilter;
+  }
+
+  // Try with action_type, fall back if not registered
+  let response;
+  let hasActionType = false;
+
+  try {
+    [response] = await client.runReport({
+      property: getPropertyId(),
+      dateRanges: [{ startDate, endDate }],
+      dimensionFilter,
+      dimensions: [
+        { name: 'date' },
+        { name: 'eventName' },
+        { name: 'customEvent:action_type' },
+        { name: 'unifiedScreenName' }
+      ],
+      metrics: [
+        { name: 'eventCount' }
+      ],
+      orderBys: [
+        { dimension: { dimensionName: 'date' }, desc: true },
+        { metric: { metricName: 'eventCount' }, desc: true }
+      ],
+      limit: 1000
+    });
+    hasActionType = true;
+  } catch (err) {
+    [response] = await client.runReport({
+      property: getPropertyId(),
+      dateRanges: [{ startDate, endDate }],
+      dimensionFilter,
+      dimensions: [
+        { name: 'date' },
+        { name: 'eventName' },
+        { name: 'unifiedScreenName' }
+      ],
+      metrics: [
+        { name: 'eventCount' }
+      ],
+      orderBys: [
+        { dimension: { dimensionName: 'date' }, desc: true },
+        { metric: { metricName: 'eventCount' }, desc: true }
+      ],
+      limit: 1000
+    });
+  }
+
+  // Group events by date
+  const eventsByDate = {};
+  response.rows?.forEach(row => {
+    const date = row.dimensionValues[0].value;
+    const eventName = row.dimensionValues[1].value;
+    const actionType = hasActionType ? (row.dimensionValues[2]?.value || null) : null;
+    const screenName = hasActionType
+      ? (row.dimensionValues[3]?.value || '(not set)')
+      : (row.dimensionValues[2]?.value || '(not set)');
+    const count = parseInt(row.metricValues[0].value) || 0;
+
+    // Create meaningful action label
+    const actionLabel = actionType && actionType !== '(not set)'
+      ? actionType
+      : eventName;
+
+    if (!eventsByDate[date]) {
+      eventsByDate[date] = { date, events: [], totalEvents: 0 };
+    }
+    eventsByDate[date].events.push({
+      eventName,
+      actionType,
+      actionLabel,
+      screenName,
+      count
+    });
+    eventsByDate[date].totalEvents += count;
+  });
+
+  return Object.values(eventsByDate).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+// Get all screens with their top actions
+// Note: action_type needs to be registered as a custom dimension in GA4 to be queryable
+async function getScreenActions(limit = 20) {
+  const client = getClient();
+  const filter = getProdFilter();
+
+  // Try with action_type custom dimension first, fall back if not registered
+  let response;
+  let hasActionType = false;
+
+  try {
+    [response] = await client.runReport({
+      property: getPropertyId(),
+      dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+      ...(filter && { dimensionFilter: filter }),
+      dimensions: [
+        { name: 'unifiedScreenName' },
+        { name: 'eventName' },
+        { name: 'customEvent:action_type' }  // Requires registration in GA4 Admin
+      ],
+      metrics: [
+        { name: 'eventCount' },
+        { name: 'activeUsers' }
+      ],
+      orderBys: [
+        { metric: { metricName: 'eventCount' }, desc: true }
+      ],
+      limit: 2000
+    });
+    hasActionType = true;
+  } catch (err) {
+    // action_type not registered as custom dimension, fall back to basic query
+    console.log('action_type dimension not available, using basic query');
+    [response] = await client.runReport({
+      property: getPropertyId(),
+      dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+      ...(filter && { dimensionFilter: filter }),
+      dimensions: [
+        { name: 'unifiedScreenName' },
+        { name: 'eventName' }
+      ],
+      metrics: [
+        { name: 'eventCount' },
+        { name: 'activeUsers' }
+      ],
+      orderBys: [
+        { metric: { metricName: 'eventCount' }, desc: true }
+      ],
+      limit: 2000
+    });
+  }
+
+  // Group by screen
+  const screenData = {};
+  response.rows?.forEach(row => {
+    const screenName = row.dimensionValues[0].value || '(not set)';
+    const eventName = row.dimensionValues[1].value;
+    const actionType = hasActionType ? (row.dimensionValues[2]?.value || null) : null;
+    const eventCount = parseInt(row.metricValues[0].value) || 0;
+    const users = parseInt(row.metricValues[1].value) || 0;
+
+    // Create a meaningful action label
+    // If action_type exists, use it (e.g., "share_recording")
+    // Otherwise fall back to eventName (e.g., "screen_view")
+    const actionLabel = actionType && actionType !== '(not set)'
+      ? actionType
+      : eventName;
+
+    if (!screenData[screenName]) {
+      screenData[screenName] = {
+        screenName,
+        totalEvents: 0,
+        totalUsers: 0,
+        actions: {}  // Use object to aggregate same actions
+      };
+    }
+    screenData[screenName].totalEvents += eventCount;
+    screenData[screenName].totalUsers = Math.max(screenData[screenName].totalUsers, users);
+
+    // Aggregate same actions
+    if (!screenData[screenName].actions[actionLabel]) {
+      screenData[screenName].actions[actionLabel] = {
+        actionLabel,
+        eventName,
+        actionType,
+        count: 0,
+        users: 0
+      };
+    }
+    screenData[screenName].actions[actionLabel].count += eventCount;
+    screenData[screenName].actions[actionLabel].users = Math.max(
+      screenData[screenName].actions[actionLabel].users,
+      users
+    );
+  });
+
+  // Convert actions object to array and sort
+  Object.values(screenData).forEach(screen => {
+    screen.actions = Object.values(screen.actions).sort((a, b) => b.count - a.count);
+    screen.topActions = screen.actions.slice(0, 8);  // Show top 8 actions
+  });
+
+  // Sort screens by total events and limit
+  return Object.values(screenData)
+    .sort((a, b) => b.totalEvents - a.totalEvents)
+    .slice(0, limit);
+}
+
+// Get detailed action breakdown for a specific screen
+async function getScreenActionDetails(screenName, limit = 100) {
+  const client = getClient();
+  const prodFilter = getProdFilter();
+
+  const screenFilter = {
+    filter: {
+      fieldName: 'unifiedScreenName',
+      stringFilter: {
+        matchType: 'EXACT',
+        value: screenName
+      }
+    }
+  };
+
+  // Combine filters
+  let dimensionFilter;
+  if (prodFilter) {
+    dimensionFilter = {
+      andGroup: {
+        expressions: [prodFilter, screenFilter]
+      }
+    };
+  } else {
+    dimensionFilter = screenFilter;
+  }
+
+  // Try with action_type, fall back if not registered
+  let response;
+  let hasActionType = false;
+
+  try {
+    [response] = await client.runReport({
+      property: getPropertyId(),
+      dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+      dimensionFilter,
+      dimensions: [
+        { name: 'eventName' },
+        { name: 'customEvent:action_type' }
+      ],
+      metrics: [
+        { name: 'eventCount' },
+        { name: 'activeUsers' }
+      ],
+      orderBys: [
+        { metric: { metricName: 'eventCount' }, desc: true }
+      ],
+      limit
+    });
+    hasActionType = true;
+  } catch (err) {
+    [response] = await client.runReport({
+      property: getPropertyId(),
+      dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+      dimensionFilter,
+      dimensions: [
+        { name: 'eventName' }
+      ],
+      metrics: [
+        { name: 'eventCount' },
+        { name: 'activeUsers' }
+      ],
+      orderBys: [
+        { metric: { metricName: 'eventCount' }, desc: true }
+      ],
+      limit
+    });
+  }
+
+  // Aggregate actions
+  const actionsMap = {};
+  response.rows?.forEach(row => {
+    const eventName = row.dimensionValues[0].value;
+    const actionType = hasActionType ? (row.dimensionValues[1]?.value || null) : null;
+    const count = parseInt(row.metricValues[0].value) || 0;
+    const users = parseInt(row.metricValues[1].value) || 0;
+
+    // Use action_type if available, otherwise eventName
+    const actionLabel = actionType && actionType !== '(not set)'
+      ? actionType
+      : eventName;
+
+    if (!actionsMap[actionLabel]) {
+      actionsMap[actionLabel] = {
+        actionLabel,
+        eventName,
+        actionType,
+        count: 0,
+        users: 0
+      };
+    }
+    actionsMap[actionLabel].count += count;
+    actionsMap[actionLabel].users = Math.max(actionsMap[actionLabel].users, users);
+  });
+
+  const actions = Object.values(actionsMap).sort((a, b) => b.count - a.count);
+  const totalEvents = actions.reduce((sum, a) => sum + a.count, 0);
+  const totalUsers = Math.max(...actions.map(a => a.users), 0);
+
+  return {
+    screenName,
+    totalEvents,
+    totalUsers,
+    actions
+  };
+}
+
 module.exports = {
   getOverviewStats,
   getActiveUserMetrics,
@@ -364,5 +689,8 @@ module.exports = {
   getDeviceBreakdown,
   getUserRetention,
   getEngagementTrend,
-  debugTest
+  debugTest,
+  getUserEvents,
+  getScreenActions,
+  getScreenActionDetails
 };

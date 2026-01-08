@@ -1,0 +1,344 @@
+// BigQuery queries for GA4 event data
+// This gives us access to ALL event parameters without needing to register custom dimensions
+
+const { BigQuery } = require('@google-cloud/bigquery');
+const path = require('path');
+
+let bigqueryClient = null;
+
+// GA4 Property ID determines the dataset name
+const GA4_PROPERTY_ID = process.env.GA4_PROPERTY_ID || '474857535';
+const GCP_PROJECT_ID = process.env.GCP_PROJECT_ID || 'xracing-912fc';
+const DATASET_ID = `analytics_${GA4_PROPERTY_ID}`;
+
+function getClient() {
+  if (!bigqueryClient) {
+    console.log('=== BigQuery Configuration ===');
+    console.log('GCP_PROJECT_ID:', GCP_PROJECT_ID);
+    console.log('DATASET_ID:', DATASET_ID);
+
+    // Use same credentials as GA4
+    if (process.env.GA4_CREDENTIALS_BASE64) {
+      const decoded = Buffer.from(process.env.GA4_CREDENTIALS_BASE64, 'base64').toString('utf8');
+      const credentials = JSON.parse(decoded);
+      bigqueryClient = new BigQuery({
+        projectId: GCP_PROJECT_ID,
+        credentials
+      });
+    } else if (process.env.GA4_CREDENTIALS_JSON) {
+      const credentials = JSON.parse(process.env.GA4_CREDENTIALS_JSON);
+      bigqueryClient = new BigQuery({
+        projectId: GCP_PROJECT_ID,
+        credentials
+      });
+    } else if (process.env.GA4_CREDENTIALS_PATH) {
+      const credentialsPath = path.resolve(process.env.GA4_CREDENTIALS_PATH);
+      bigqueryClient = new BigQuery({
+        projectId: GCP_PROJECT_ID,
+        keyFilename: credentialsPath
+      });
+    } else {
+      throw new Error('BigQuery credentials not configured');
+    }
+    console.log('BigQuery client initialized');
+    console.log('==============================');
+  }
+  return bigqueryClient;
+}
+
+// Helper to get event parameter value from the event_params array
+const getEventParam = (paramName, type = 'string') => {
+  const valueField = type === 'int' ? 'value.int_value'
+    : type === 'double' ? 'value.double_value'
+    : 'value.string_value';
+  return `(SELECT ${valueField} FROM UNNEST(event_params) WHERE key = '${paramName}')`;
+};
+
+// Get screen actions with full action_type detail (last 30 days)
+async function getScreenActions(days = 30) {
+  const client = getClient();
+
+  const query = `
+    SELECT
+      ${getEventParam('firebase_screen')} as screen_name,
+      event_name,
+      ${getEventParam('action_type')} as action_type,
+      COUNT(*) as event_count,
+      COUNT(DISTINCT user_pseudo_id) as unique_users
+    FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+    WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+      AND ${getEventParam('firebase_screen')} IS NOT NULL
+    GROUP BY screen_name, event_name, action_type
+    ORDER BY event_count DESC
+    LIMIT 2000
+  `;
+
+  const [rows] = await client.query({ query });
+
+  // Group by screen
+  const screenData = {};
+  rows.forEach(row => {
+    const screenName = row.screen_name || '(not set)';
+    const eventName = row.event_name;
+    const actionType = row.action_type || null;
+    const eventCount = parseInt(row.event_count) || 0;
+    const users = parseInt(row.unique_users) || 0;
+
+    // Use action_type if available, otherwise eventName
+    const actionLabel = actionType && actionType !== '(not set)'
+      ? actionType
+      : eventName;
+
+    if (!screenData[screenName]) {
+      screenData[screenName] = {
+        screenName,
+        totalEvents: 0,
+        totalUsers: 0,
+        screenViews: 0,
+        screenViewUsers: 0,
+        actions: {}
+      };
+    }
+    screenData[screenName].totalEvents += eventCount;
+    screenData[screenName].totalUsers = Math.max(screenData[screenName].totalUsers, users);
+
+    // Separate screen_view and system events from actions
+    if (eventName === 'screen_view') {
+      screenData[screenName].screenViews += eventCount;
+      screenData[screenName].screenViewUsers = Math.max(screenData[screenName].screenViewUsers, users);
+      return; // Don't add to actions
+    }
+
+    // Skip system events that aren't real user actions
+    if (['user_engagement', 'session_start', 'first_visit', 'app_remove', 'app_background', 'app_foreground'].includes(eventName)) {
+      return;
+    }
+
+    // Aggregate same actions
+    if (!screenData[screenName].actions[actionLabel]) {
+      screenData[screenName].actions[actionLabel] = {
+        actionLabel,
+        eventName,
+        actionType,
+        count: 0,
+        users: 0
+      };
+    }
+    screenData[screenName].actions[actionLabel].count += eventCount;
+    screenData[screenName].actions[actionLabel].users = Math.max(
+      screenData[screenName].actions[actionLabel].users,
+      users
+    );
+  });
+
+  // Convert actions object to array and sort
+  Object.values(screenData).forEach(screen => {
+    screen.actions = Object.values(screen.actions).sort((a, b) => b.count - a.count);
+    screen.topActions = screen.actions.slice(0, 8);
+  });
+
+  return Object.values(screenData)
+    .sort((a, b) => b.totalEvents - a.totalEvents)
+    .slice(0, 30);
+}
+
+// Get detailed actions for a specific screen
+async function getScreenActionDetails(screenName, days = 30) {
+  const client = getClient();
+
+  const query = `
+    SELECT
+      event_name,
+      ${getEventParam('action_type')} as action_type,
+      COUNT(*) as event_count,
+      COUNT(DISTINCT user_pseudo_id) as unique_users
+    FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+    WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+      AND ${getEventParam('firebase_screen')} = @screenName
+    GROUP BY event_name, action_type
+    ORDER BY event_count DESC
+    LIMIT 100
+  `;
+
+  const [rows] = await client.query({
+    query,
+    params: { screenName }
+  });
+
+  // Aggregate actions, separate screen_view
+  const actionsMap = {};
+  let screenViews = 0;
+  let screenViewUsers = 0;
+
+  rows.forEach(row => {
+    const eventName = row.event_name;
+    const actionType = row.action_type || null;
+    const count = parseInt(row.event_count) || 0;
+    const users = parseInt(row.unique_users) || 0;
+
+    // Separate screen_view
+    if (eventName === 'screen_view') {
+      screenViews += count;
+      screenViewUsers = Math.max(screenViewUsers, users);
+      return;
+    }
+
+    // Skip system events that aren't real user actions
+    if (['user_engagement', 'session_start', 'first_visit', 'app_remove', 'app_background', 'app_foreground'].includes(eventName)) {
+      return;
+    }
+
+    const actionLabel = actionType && actionType !== '(not set)'
+      ? actionType
+      : eventName;
+
+    if (!actionsMap[actionLabel]) {
+      actionsMap[actionLabel] = {
+        actionLabel,
+        eventName,
+        actionType,
+        count: 0,
+        users: 0
+      };
+    }
+    actionsMap[actionLabel].count += count;
+    actionsMap[actionLabel].users = Math.max(actionsMap[actionLabel].users, users);
+  });
+
+  const actions = Object.values(actionsMap).sort((a, b) => b.count - a.count);
+  const totalEvents = actions.reduce((sum, a) => sum + a.count, 0) + screenViews;
+  const totalUsers = Math.max(...actions.map(a => a.users), 0);
+
+  return {
+    screenName,
+    totalEvents,
+    totalUsers,
+    screenViews,
+    screenViewUsers,
+    actions
+  };
+}
+
+// Get user events with EXACT timestamps (for crash debugging)
+async function getUserEvents(userId, startDate, endDate) {
+  const client = getClient();
+
+  // Convert dates to BigQuery format (YYYYMMDD)
+  const startSuffix = startDate.replace(/-/g, '');
+  const endSuffix = endDate.replace(/-/g, '');
+
+  const query = `
+    SELECT
+      TIMESTAMP_MICROS(event_timestamp) as event_time,
+      event_name,
+      ${getEventParam('action_type')} as action_type,
+      ${getEventParam('firebase_screen')} as screen_name,
+      ${getEventParam('entity_type')} as entity_type,
+      ${getEventParam('entity_id')} as entity_id,
+      ${getEventParam('recording_id')} as recording_id,
+      ${getEventParam('track_id')} as track_id,
+      ${getEventParam('error_type')} as error_type,
+      ${getEventParam('error_message')} as error_message
+    FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+    WHERE _TABLE_SUFFIX BETWEEN @startSuffix AND @endSuffix
+      AND user_id = @userId
+    ORDER BY event_timestamp DESC
+    LIMIT 1000
+  `;
+
+  const [rows] = await client.query({
+    query,
+    params: { userId, startSuffix, endSuffix }
+  });
+
+  // Group events by date, but keep exact timestamps
+  const eventsByDate = {};
+  rows.forEach(row => {
+    const eventTime = new Date(row.event_time.value);
+    const dateKey = eventTime.toISOString().split('T')[0].replace(/-/g, '');
+    const timeStr = eventTime.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+
+    const eventName = row.event_name;
+    const actionType = row.action_type || null;
+    const actionLabel = actionType || eventName;
+
+    if (!eventsByDate[dateKey]) {
+      eventsByDate[dateKey] = { date: dateKey, events: [], totalEvents: 0 };
+    }
+
+    eventsByDate[dateKey].events.push({
+      time: timeStr,
+      timestamp: eventTime.toISOString(),
+      eventName,
+      actionType,
+      actionLabel,
+      screenName: row.screen_name || '(not set)',
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      recordingId: row.recording_id,
+      trackId: row.track_id,
+      errorType: row.error_type,
+      errorMessage: row.error_message
+    });
+    eventsByDate[dateKey].totalEvents += 1;
+  });
+
+  return Object.values(eventsByDate).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+// Get all unique action_types in the system (for reference)
+async function getAllActionTypes(days = 30) {
+  const client = getClient();
+
+  const query = `
+    SELECT
+      ${getEventParam('action_type')} as action_type,
+      COUNT(*) as count
+    FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+    WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+      AND ${getEventParam('action_type')} IS NOT NULL
+    GROUP BY action_type
+    ORDER BY count DESC
+  `;
+
+  const [rows] = await client.query({ query });
+  return rows.map(r => ({ actionType: r.action_type, count: parseInt(r.count) }));
+}
+
+// Test BigQuery connection
+async function testConnection() {
+  const client = getClient();
+
+  try {
+    const query = `
+      SELECT COUNT(*) as total_events
+      FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY))
+    `;
+    const [rows] = await client.query({ query });
+    return {
+      success: true,
+      totalEvents7d: parseInt(rows[0].total_events),
+      dataset: DATASET_ID
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message,
+      dataset: DATASET_ID
+    };
+  }
+}
+
+module.exports = {
+  getScreenActions,
+  getScreenActionDetails,
+  getUserEvents,
+  getAllActionTypes,
+  testConnection
+};

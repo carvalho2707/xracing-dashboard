@@ -1,146 +1,100 @@
-// Analytics page specific JavaScript (GA4)
+// Product Analytics page JavaScript
 
-let dailyUsersChart, engagementChart, trafficChart, countryChart;
+let dailyActiveChart, signupsChart;
 
-// Format duration (seconds to readable)
-function formatDurationSeconds(seconds) {
-  if (seconds >= 3600) {
-    return Math.floor(seconds / 3600) + 'h ' + Math.floor((seconds % 3600) / 60) + 'm';
-  }
-  if (seconds >= 60) {
-    return Math.floor(seconds / 60) + 'm ' + Math.floor(seconds % 60) + 's';
-  }
-  return Math.floor(seconds) + 's';
+// ============================================
+// Tier 1: Survival Metrics
+// ============================================
+
+async function updateActivation() {
+  const data = await fetchData('analytics/activation');
+  if (!data) return;
+
+  document.getElementById('activationRate').textContent =
+    data.activation_rate ? `${data.activation_rate}%` : '0%';
+  document.getElementById('activationRate7d').textContent =
+    data.activation_rate_7d ? `${data.activation_rate_7d}%` : '0%';
+
+  // Update funnel
+  document.getElementById('funnelTotal').textContent = formatNumber(data.total_users);
+  document.getElementById('funnelActivated').textContent =
+    `${formatNumber(data.activated_users)} (${data.activation_rate || 0}%)`;
+  document.getElementById('funnelActivatedBar').style.width = `${data.activation_rate || 0}%`;
 }
 
-// Format GA4 date (YYYYMMDD to readable)
-function formatGA4Date(dateStr) {
-  const year = dateStr.substring(0, 4);
-  const month = dateStr.substring(4, 6);
-  const day = dateStr.substring(6, 8);
-  const date = new Date(year, month - 1, day);
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+async function updateRetention() {
+  const data = await fetchData('analytics/retention');
+  if (!data) return;
+
+  document.getElementById('retentionD1').textContent =
+    data.retention_d1 ? `${data.retention_d1}%` : '0%';
+  document.getElementById('retentionD7').textContent =
+    data.retention_d7 ? `${data.retention_d7}%` : '0%';
 }
 
-// Update DAU/WAU/MAU
 async function updateActiveUsers() {
-  const data = await fetchData('ga4/active-users');
+  const data = await fetchData('analytics/active-users');
   if (!data) return;
 
   document.getElementById('dauCount').textContent = formatNumber(data.dau);
   document.getElementById('wauCount').textContent = formatNumber(data.wau);
   document.getElementById('mauCount').textContent = formatNumber(data.mau);
+  document.getElementById('stickiness').textContent = `${data.stickiness}%`;
+  document.getElementById('activeUsers7d').textContent = formatNumber(data.wau);
 }
 
-// Update overview stats
-async function updateOverview() {
-  const data = await fetchData('ga4/overview');
-  if (!data) return;
-
-  document.getElementById('totalSessions').textContent = formatNumber(data.sessions);
-  document.getElementById('screenViews').textContent = formatNumber(data.screenViews);
-  document.getElementById('avgSession').textContent = formatDurationSeconds(data.avgSessionDuration);
-  document.getElementById('newUsers').textContent = formatNumber(data.newUsers);
-}
-
-// Update retention stats
-async function updateRetention() {
-  const data = await fetchData('ga4/retention');
-  if (!data) return;
-
-  document.getElementById('retentionNew').textContent = formatNumber(data.new);
-  document.getElementById('retentionReturning').textContent = formatNumber(data.returning);
-  document.getElementById('retentionNewSessions').textContent = formatNumber(data.newSessions);
-  document.getElementById('retentionReturnSessions').textContent = formatNumber(data.returningSessions);
-}
-
-// Create daily users chart
-async function createDailyUsersChart() {
-  const data = await fetchData('ga4/daily-users?days=30');
+async function createDailyActiveChart() {
+  const data = await fetchData('analytics/daily-active?days=7');
   if (!data || data.length === 0) return;
 
-  const ctx = document.getElementById('dailyUsersChart').getContext('2d');
-  if (dailyUsersChart) dailyUsersChart.destroy();
+  const ctx = document.getElementById('dailyActiveChart').getContext('2d');
+  if (dailyActiveChart) dailyActiveChart.destroy();
 
-  dailyUsersChart = new Chart(ctx, {
+  dailyActiveChart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: data.map(d => formatGA4Date(d.date)),
+      labels: data.map(d => formatDate(d.date)),
       datasets: [
         {
           label: 'Active Users',
-          data: data.map(d => d.activeUsers),
-          borderColor: '#3B82F6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          data: data.map(d => d.active_users),
+          borderColor: '#E53935',
+          backgroundColor: 'rgba(229, 57, 53, 0.1)',
           fill: true,
           tension: 0.4,
-          pointRadius: 2
+          pointRadius: 4,
+          pointBackgroundColor: '#E53935'
         },
         {
-          label: 'New Users',
-          data: data.map(d => d.newUsers),
-          borderColor: '#10B981',
+          label: 'New Signups',
+          data: data.map(d => d.new_users),
+          borderColor: '#3B82F6',
           backgroundColor: 'transparent',
           borderDash: [5, 5],
           tension: 0.4,
-          pointRadius: 2
+          pointRadius: 3,
+          pointBackgroundColor: '#3B82F6'
         }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
       plugins: {
         legend: {
           position: 'top',
-          labels: { boxWidth: 12, padding: 15 }
+          labels: { boxWidth: 12, padding: 15, usePointStyle: true }
         }
       },
       scales: {
         y: {
           beginAtZero: true,
-          grid: { color: 'rgba(48, 54, 61, 0.3)' }
-        },
-        x: {
-          grid: { display: false },
-          ticks: { maxTicksLimit: 10 }
-        }
-      }
-    }
-  });
-}
-
-// Create engagement chart
-async function createEngagementChart() {
-  const data = await fetchData('ga4/engagement?days=14');
-  if (!data || data.length === 0) return;
-
-  const ctx = document.getElementById('engagementChart').getContext('2d');
-  if (engagementChart) engagementChart.destroy();
-
-  engagementChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: data.map(d => formatGA4Date(d.date)),
-      datasets: [{
-        label: 'Engagement Rate %',
-        data: data.map(d => parseFloat(d.engagementRate)),
-        backgroundColor: 'rgba(229, 57, 53, 0.8)',
-        borderRadius: 4
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100,
           grid: { color: 'rgba(48, 54, 61, 0.3)' },
-          ticks: { callback: v => v + '%' }
+          ticks: { precision: 0 }
         },
         x: {
           grid: { display: false }
@@ -150,71 +104,45 @@ async function createEngagementChart() {
   });
 }
 
-// Create traffic sources chart
-async function createTrafficChart() {
-  const data = await fetchData('ga4/traffic');
+// ============================================
+// Tier 2: Growth Health
+// ============================================
+
+async function updateSignups() {
+  const data = await fetchData('analytics/signups?days=7');
   if (!data || data.length === 0) return;
 
-  const ctx = document.getElementById('trafficChart').getContext('2d');
-  if (trafficChart) trafficChart.destroy();
+  const total = data.reduce((sum, d) => sum + parseInt(d.signups), 0);
+  document.getElementById('signups7d').textContent = formatNumber(total);
 
-  const colors = ['#E53935', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
+  const ctx = document.getElementById('signupsChart').getContext('2d');
+  if (signupsChart) signupsChart.destroy();
 
-  trafficChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: data.map(d => d.channel),
-      datasets: [{
-        data: data.map(d => d.sessions),
-        backgroundColor: data.map((_, i) => colors[i % colors.length]),
-        borderWidth: 0
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'right',
-          labels: { boxWidth: 12, padding: 10, font: { size: 11 } }
-        }
-      }
-    }
-  });
-}
-
-// Create country chart
-async function createCountryChart() {
-  const data = await fetchData('ga4/countries?limit=10');
-  if (!data || data.length === 0) return;
-
-  const ctx = document.getElementById('countryChart').getContext('2d');
-  if (countryChart) countryChart.destroy();
-
-  countryChart = new Chart(ctx, {
+  signupsChart = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: data.map(d => d.country),
+      labels: data.map(d => formatDate(d.date)),
       datasets: [{
-        label: 'Users',
-        data: data.map(d => d.users),
+        label: 'Signups',
+        data: data.map(d => d.signups),
         backgroundColor: 'rgba(59, 130, 246, 0.8)',
-        borderRadius: 4
+        borderRadius: 4,
+        barThickness: 24
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      indexAxis: 'y',
       plugins: {
         legend: { display: false }
       },
       scales: {
-        x: {
-          beginAtZero: true,
-          grid: { color: 'rgba(48, 54, 61, 0.3)' }
-        },
         y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(48, 54, 61, 0.3)' },
+          ticks: { precision: 0 }
+        },
+        x: {
           grid: { display: false }
         }
       }
@@ -222,62 +150,84 @@ async function createCountryChart() {
   });
 }
 
-// Update top events table
-async function updateTopEvents() {
-  const data = await fetchData('ga4/events?limit=15');
+async function updateRecordingsPerUser() {
+  const data = await fetchData('analytics/recordings-per-user');
   if (!data) return;
 
-  const tbody = document.getElementById('topEventsTable');
-  tbody.innerHTML = data.map(event => `
-    <tr class="border-b border-racing-border/50 hover:bg-racing-border/20">
-      <td class="py-2 px-2">
-        <span class="text-white text-sm font-mono">${event.eventName}</span>
-      </td>
-      <td class="py-2 px-2 text-right text-white">${formatNumber(event.count)}</td>
-      <td class="py-2 px-2 text-right text-racing-muted">${formatNumber(event.users)}</td>
-    </tr>
-  `).join('');
+  document.getElementById('avgRecordingsPerUser').textContent =
+    data.avg_recordings_per_user || '0';
+  document.getElementById('medianRecordings').textContent =
+    data.median_recordings || '0';
 }
 
-// Update top screens table
-async function updateTopScreens() {
-  const data = await fetchData('ga4/screens?limit=15');
+// ============================================
+// Tier 3: Engagement Depth
+// ============================================
+
+async function updateSocialEngagement() {
+  const data = await fetchData('analytics/social-engagement');
   if (!data) return;
 
-  const tbody = document.getElementById('topScreensTable');
-  tbody.innerHTML = data.map(screen => `
-    <tr class="border-b border-racing-border/50 hover:bg-racing-border/20">
-      <td class="py-2 px-2">
-        <span class="text-white text-sm">${screen.screen || '(not set)'}</span>
-      </td>
-      <td class="py-2 px-2 text-right text-white">${formatNumber(screen.views)}</td>
-      <td class="py-2 px-2 text-right text-racing-muted">${formatNumber(screen.users)}</td>
-    </tr>
-  `).join('');
+  document.getElementById('socialActionsPerUser').textContent =
+    data.actions_per_user || '0';
+  document.getElementById('totalLikes').textContent = formatNumber(data.total_likes);
+  document.getElementById('totalComments').textContent = formatNumber(data.total_comments);
+  document.getElementById('totalFollows').textContent = formatNumber(data.total_follows);
+  document.getElementById('activeUsers30d').textContent = formatNumber(data.active_users);
 }
 
-// Refresh all data
+async function updateFeatureAdoption() {
+  const data = await fetchData('analytics/feature-adoption');
+  if (!data) return;
+
+  // Update circular progress indicators
+  updateCircularProgress('trackCreatorCircle', 'trackCreatorRate', data.track_creator_rate);
+  updateCircularProgress('likeCircle', 'likeRate', data.like_adoption_rate);
+  updateCircularProgress('commentCircle', 'commentRate', data.comment_adoption_rate);
+  updateCircularProgress('followCircle', 'followRate', data.follow_adoption_rate);
+  updateCircularProgress('mediaCircle', 'mediaRate', data.media_adoption_rate);
+}
+
+function updateCircularProgress(circleId, rateId, rate) {
+  const circle = document.getElementById(circleId);
+  const rateEl = document.getElementById(rateId);
+
+  if (!circle || !rateEl) return;
+
+  const circumference = 226.2; // 2 * PI * 36
+  const offset = circumference - (circumference * (rate || 0) / 100);
+
+  circle.style.strokeDashoffset = offset;
+  rateEl.textContent = rate ? `${rate}%` : '0%';
+}
+
+// ============================================
+// Refresh & Initialize
+// ============================================
+
 async function refreshData() {
   document.getElementById('loading').classList.remove('hidden');
   document.getElementById('dashboard').classList.add('hidden');
 
   await Promise.all([
-    updateActiveUsers(),
-    updateOverview(),
+    // Tier 1
+    updateActivation(),
     updateRetention(),
-    createDailyUsersChart(),
-    createEngagementChart(),
-    createTrafficChart(),
-    createCountryChart(),
-    updateTopEvents(),
-    updateTopScreens()
+    updateActiveUsers(),
+    createDailyActiveChart(),
+    // Tier 2
+    updateSignups(),
+    updateRecordingsPerUser(),
+    // Tier 3
+    updateSocialEngagement(),
+    updateFeatureAdoption()
   ]);
 
   document.getElementById('loading').classList.add('hidden');
   document.getElementById('dashboard').classList.remove('hidden');
 }
 
-// Initialize
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', refreshData);
 
 // Auto-refresh every 5 minutes
