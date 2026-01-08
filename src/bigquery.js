@@ -256,8 +256,11 @@ async function getUserEvents(userId, startDate, endDate) {
       ${getEventParam('firebase_screen')} as screen_name,
       ${getEventParam('entity_type')} as entity_type,
       ${getEventParam('entity_id')} as entity_id,
+      ${getEventParam('item_id')} as item_id,
       ${getEventParam('recording_id')} as recording_id,
       ${getEventParam('track_id')} as track_id,
+      ${getEventParam('event_id')} as event_id,
+      ${getEventParam('driver_id')} as driver_id,
       ${getEventParam('error_type')} as error_type,
       ${getEventParam('error_message')} as error_message
     FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
@@ -301,8 +304,11 @@ async function getUserEvents(userId, startDate, endDate) {
       screenName: row.screen_name || '(not set)',
       entityType: row.entity_type,
       entityId: row.entity_id,
+      itemId: row.item_id,
       recordingId: row.recording_id,
       trackId: row.track_id,
+      eventId: row.event_id,
+      driverId: row.driver_id,
       errorType: row.error_type,
       errorMessage: row.error_message
     });

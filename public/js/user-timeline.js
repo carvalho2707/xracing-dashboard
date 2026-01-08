@@ -175,15 +175,25 @@ function renderTimeline(data) {
 
       // Show additional context (entity info, errors) if available
       const contextParts = [];
-      if (event.recordingId) {
+      // Prefer itemId (ITEM_ID param) which often contains the recording being viewed
+      if (event.itemId) {
+        contextParts.push(`<span class="text-cyan-400">item:</span> <span class="font-mono">${event.itemId}</span>`);
+      }
+      if (event.recordingId && event.recordingId !== event.itemId) {
         contextParts.push(`<span class="text-cyan-400">recording:</span> <span class="font-mono">${event.recordingId}</span>`);
       }
       if (event.trackId) {
         contextParts.push(`<span class="text-green-400">track:</span> <span class="font-mono">${event.trackId}</span>`);
       }
-      if (event.entityType && event.entityId && !event.recordingId && !event.trackId) {
+      if (event.eventId) {
+        contextParts.push(`<span class="text-yellow-400">event:</span> <span class="font-mono">${event.eventId}</span>`);
+      }
+      if (event.driverId) {
+        contextParts.push(`<span class="text-purple-400">driver:</span> <span class="font-mono">${event.driverId}</span>`);
+      }
+      if (event.entityType && event.entityId && !event.itemId && !event.recordingId && !event.trackId && !event.eventId && !event.driverId) {
         // Only show generic entity if no specific IDs
-        contextParts.push(`<span class="text-yellow-400">${event.entityType}:</span> <span class="font-mono">${event.entityId}</span>`);
+        contextParts.push(`<span class="text-orange-400">${event.entityType}:</span> <span class="font-mono">${event.entityId}</span>`);
       }
       if (event.errorType) {
         contextParts.push(`<span class="text-red-400">Error: ${event.errorType}${event.errorMessage ? ' - ' + event.errorMessage : ''}</span>`);
