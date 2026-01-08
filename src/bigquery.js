@@ -248,21 +248,15 @@ async function getUserEvents(userId, startDate, endDate) {
   const startSuffix = startDate.replace(/-/g, '');
   const endSuffix = endDate.replace(/-/g, '');
 
+  // Fetch all event_params as a JSON object for maximum flexibility
   const query = `
     SELECT
       TIMESTAMP_MICROS(event_timestamp) as event_time,
       event_name,
-      ${getEventParam('action_type')} as action_type,
-      ${getEventParam('firebase_screen')} as screen_name,
-      ${getEventParam('entity_type')} as entity_type,
-      ${getEventParam('entity_id')} as entity_id,
-      ${getEventParam('item_id')} as item_id,
-      ${getEventParam('recording_id')} as recording_id,
-      ${getEventParam('track_id')} as track_id,
-      ${getEventParam('event_id')} as event_id,
-      ${getEventParam('driver_id')} as driver_id,
-      ${getEventParam('error_type')} as error_type,
-      ${getEventParam('error_message')} as error_message
+      (
+        SELECT ARRAY_AGG(STRUCT(key, value.string_value, value.int_value, value.double_value))
+        FROM UNNEST(event_params)
+      ) as params
     FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
     WHERE _TABLE_SUFFIX BETWEEN @startSuffix AND @endSuffix
       AND user_id = @userId
@@ -274,6 +268,22 @@ async function getUserEvents(userId, startDate, endDate) {
     query,
     params: { userId, startSuffix, endSuffix }
   });
+
+  // Helper to convert params array to object
+  const paramsToObject = (params) => {
+    if (!params) return {};
+    const obj = {};
+    params.forEach(p => {
+      // Use string_value, or convert int/double to string if present
+      const value = p.string_value ||
+        (p.int_value !== null ? String(p.int_value) : null) ||
+        (p.double_value !== null ? String(p.double_value) : null);
+      if (value !== null) {
+        obj[p.key] = value;
+      }
+    });
+    return obj;
+  };
 
   // Group events by date, but keep exact timestamps
   const eventsByDate = {};
@@ -288,7 +298,8 @@ async function getUserEvents(userId, startDate, endDate) {
     });
 
     const eventName = row.event_name;
-    const actionType = row.action_type || null;
+    const params = paramsToObject(row.params);
+    const actionType = params.action_type || null;
     const actionLabel = actionType || eventName;
 
     if (!eventsByDate[dateKey]) {
@@ -301,16 +312,9 @@ async function getUserEvents(userId, startDate, endDate) {
       eventName,
       actionType,
       actionLabel,
-      screenName: row.screen_name || '(not set)',
-      entityType: row.entity_type,
-      entityId: row.entity_id,
-      itemId: row.item_id,
-      recordingId: row.recording_id,
-      trackId: row.track_id,
-      eventId: row.event_id,
-      driverId: row.driver_id,
-      errorType: row.error_type,
-      errorMessage: row.error_message
+      screenName: params.screen_name || params.firebase_screen || '(not set)',
+      // Include ALL params for maximum flexibility
+      params
     });
     eventsByDate[dateKey].totalEvents += 1;
   });

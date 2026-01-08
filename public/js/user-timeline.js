@@ -48,6 +48,7 @@ function getEventCategory(label) {
 // Format action label for display (convert snake_case to readable)
 function formatActionLabel(label) {
   return label
+    .toLowerCase()
     .replace(/_/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -173,33 +174,43 @@ function renderTimeline(data) {
         ? `<span class="text-xs text-cyan-400 font-mono">${event.time}</span>`
         : `<span class="text-sm font-medium text-white">${event.count}x</span>`;
 
-      // Show additional context (entity info, errors) if available
+      // Show all params dynamically (excluding system/internal ones)
+      const params = event.params || {};
+      const excludeParams = [
+        'screen_name', 'firebase_screen', 'action_type', 'ga_session_id', 'ga_session_number',
+        'engaged_session_event', 'firebase_event_origin', 'firebase_screen_class',
+        'firebase_screen_id', 'firebase_previous_screen', 'firebase_previous_class',
+        'firebase_previous_id', 'entrances', 'session_engaged', 'page_title',
+        'page_location', 'page_referrer', 'engagement_time_msec'
+      ];
+
+      // Color coding for different param types
+      const paramColors = {
+        item_id: 'text-cyan-400',
+        item_type: 'text-cyan-400',
+        recording_id: 'text-cyan-400',
+        track_id: 'text-green-400',
+        event_id: 'text-yellow-400',
+        driver_id: 'text-purple-400',
+        user_id: 'text-pink-400',
+        error_type: 'text-red-400',
+        error_message: 'text-red-400',
+        content_type: 'text-blue-400',
+        method: 'text-blue-400',
+        source: 'text-orange-400',
+        search_query: 'text-indigo-400',
+      };
+
       const contextParts = [];
-      // Prefer itemId (ITEM_ID param) which often contains the recording being viewed
-      if (event.itemId) {
-        contextParts.push(`<span class="text-cyan-400">item:</span> <span class="font-mono">${event.itemId}</span>`);
-      }
-      if (event.recordingId && event.recordingId !== event.itemId) {
-        contextParts.push(`<span class="text-cyan-400">recording:</span> <span class="font-mono">${event.recordingId}</span>`);
-      }
-      if (event.trackId) {
-        contextParts.push(`<span class="text-green-400">track:</span> <span class="font-mono">${event.trackId}</span>`);
-      }
-      if (event.eventId) {
-        contextParts.push(`<span class="text-yellow-400">event:</span> <span class="font-mono">${event.eventId}</span>`);
-      }
-      if (event.driverId) {
-        contextParts.push(`<span class="text-purple-400">driver:</span> <span class="font-mono">${event.driverId}</span>`);
-      }
-      if (event.entityType && event.entityId && !event.itemId && !event.recordingId && !event.trackId && !event.eventId && !event.driverId) {
-        // Only show generic entity if no specific IDs
-        contextParts.push(`<span class="text-orange-400">${event.entityType}:</span> <span class="font-mono">${event.entityId}</span>`);
-      }
-      if (event.errorType) {
-        contextParts.push(`<span class="text-red-400">Error: ${event.errorType}${event.errorMessage ? ' - ' + event.errorMessage : ''}</span>`);
-      }
+      Object.entries(params).forEach(([key, value]) => {
+        if (excludeParams.includes(key) || !value) return;
+        const color = paramColors[key] || 'text-racing-muted';
+        const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        contextParts.push(`<span class="${color}">${displayKey}:</span> <span class="font-mono">${value}</span>`);
+      });
+
       const contextHtml = contextParts.length > 0
-        ? `<div class="text-xs text-racing-muted mt-1">${contextParts.join(' <span class="text-racing-border">|</span> ')}</div>`
+        ? `<div class="text-xs text-racing-muted mt-1 flex flex-wrap gap-x-3 gap-y-1">${contextParts.join('')}</div>`
         : '';
 
       return `
