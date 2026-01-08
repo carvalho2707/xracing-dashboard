@@ -175,14 +175,21 @@ function renderTimeline(data) {
 
       // Show additional context (entity info, errors) if available
       const contextParts = [];
-      if (event.entityType && event.entityId) {
-        contextParts.push(`${event.entityType}: ${event.entityId.substring(0, 8)}...`);
+      if (event.recordingId) {
+        contextParts.push(`<span class="text-cyan-400">recording:</span> <span class="font-mono">${event.recordingId}</span>`);
+      }
+      if (event.trackId) {
+        contextParts.push(`<span class="text-green-400">track:</span> <span class="font-mono">${event.trackId}</span>`);
+      }
+      if (event.entityType && event.entityId && !event.recordingId && !event.trackId) {
+        // Only show generic entity if no specific IDs
+        contextParts.push(`<span class="text-yellow-400">${event.entityType}:</span> <span class="font-mono">${event.entityId}</span>`);
       }
       if (event.errorType) {
-        contextParts.push(`<span class="text-red-400">Error: ${event.errorType}</span>`);
+        contextParts.push(`<span class="text-red-400">Error: ${event.errorType}${event.errorMessage ? ' - ' + event.errorMessage : ''}</span>`);
       }
       const contextHtml = contextParts.length > 0
-        ? `<div class="text-xs text-racing-muted mt-1">${contextParts.join(' | ')}</div>`
+        ? `<div class="text-xs text-racing-muted mt-1">${contextParts.join(' <span class="text-racing-border">|</span> ')}</div>`
         : '';
 
       return `
