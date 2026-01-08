@@ -139,57 +139,94 @@
 
       <!-- Dashboard Content -->
       <div id="dashboard" class="hidden space-y-6">
-        <!-- Live Status Cards -->
+        <!-- Live Status Summary -->
         <div class="glass-card rounded-xl p-6">
           <div class="flex items-center mb-6">
             <span class="pulse-dot w-3 h-3 bg-red-500 rounded-full mr-3"></span>
             <h2 class="text-xl font-bold text-white">Live Status</h2>
+            <span class="ml-3 text-xs px-2 py-1 rounded bg-racing-border text-racing-muted">RTDB</span>
           </div>
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-6">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div class="text-center">
-              <p id="liveCount" class="text-4xl font-bold text-red-500">-</p>
-              <p class="text-sm text-racing-muted mt-1">Live</p>
+              <p id="totalLiveCount" class="text-4xl font-bold text-red-500">-</p>
+              <p class="text-sm text-racing-muted mt-1">Live Recordings</p>
             </div>
             <div class="text-center">
-              <p id="uploadingCount" class="text-4xl font-bold text-yellow-500">-</p>
-              <p class="text-sm text-racing-muted mt-1">Uploading</p>
-            </div>
-            <div class="text-center">
-              <p id="endedCount" class="text-4xl font-bold text-green-500">-</p>
-              <p class="text-sm text-racing-muted mt-1">Ended</p>
+              <p id="totalViews" class="text-4xl font-bold text-cyan-400">-</p>
+              <p class="text-sm text-racing-muted mt-1">Total Views</p>
             </div>
             <div class="text-center md:border-l md:border-racing-border md:pl-6">
-              <p id="liveDrivers" class="text-4xl font-bold text-white">-</p>
-              <p class="text-sm text-racing-muted mt-1">Drivers</p>
+              <p id="activeTracksCount" class="text-4xl font-bold text-blue-400">-</p>
+              <p class="text-sm text-racing-muted mt-1">Active Tracks</p>
             </div>
             <div class="text-center">
-              <p id="liveTracks" class="text-4xl font-bold text-white">-</p>
-              <p class="text-sm text-racing-muted mt-1">Tracks</p>
+              <p id="noTrackCount" class="text-4xl font-bold text-purple-400">-</p>
+              <p class="text-sm text-racing-muted mt-1">Free Driving Live</p>
             </div>
           </div>
         </div>
 
-        <!-- Live Monitoring Table -->
+        <!-- Track Recordings Section -->
         <div class="glass-card rounded-xl p-6">
           <div class="flex items-center justify-between mb-4">
             <div class="flex items-center">
-              <span class="pulse-dot w-2 h-2 bg-red-500 rounded-full mr-2"></span>
-              <h3 class="text-lg font-semibold text-white">Active Recordings</h3>
+              <span class="pulse-dot w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+              <h3 class="text-lg font-semibold text-white">Track Days</h3>
             </div>
-            <span id="activeCount" class="text-sm text-racing-muted">- recordings</span>
+            <div class="flex items-center gap-4">
+              <span class="text-sm text-racing-muted">
+                <span id="trackTotalViews">-</span> views
+              </span>
+              <span class="text-sm text-cyan-400">
+                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                <span id="trackViewerCount">-</span> watching
+              </span>
+              <span id="trackRecordingsCount" class="text-sm text-racing-muted">- recordings</span>
+            </div>
+          </div>
+          <div id="trackRecordingsContainer">
+            <div class="text-center py-8 text-racing-muted">Loading track recordings...</div>
+          </div>
+        </div>
+
+        <!-- noTrack Recordings Section -->
+        <div class="glass-card rounded-xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center">
+              <span class="pulse-dot w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+              <h3 class="text-lg font-semibold text-white">Free Driving</h3>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="text-sm text-racing-muted">
+                <span id="noTrackTotalViews">-</span> views
+              </span>
+              <span class="text-sm text-cyan-400">
+                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                <span id="noTrackViewerCount">-</span> watching
+              </span>
+              <span id="noTrackRecordingsCount" class="text-sm text-racing-muted">- recordings</span>
+            </div>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full">
               <thead>
                 <tr class="text-racing-muted text-sm border-b border-racing-border">
+                  <th class="text-left py-3 px-2">Recording</th>
                   <th class="text-left py-3 px-2">Driver</th>
-                  <th class="text-left py-3 px-2">Track/Location</th>
                   <th class="text-left py-3 px-2">Start Time</th>
-                  <th class="text-left py-3 px-2">Status</th>
+                  <th class="text-left py-3 px-2">RTDB</th>
+                  <th class="text-left py-3 px-2">DB</th>
+                  <th class="text-right py-3 px-2">Viewers</th>
                 </tr>
               </thead>
-              <tbody id="liveMonitoringTable">
-                <tr><td colspan="4" class="py-8 text-center text-racing-muted">Loading...</td></tr>
+              <tbody id="noTrackTable">
+                <tr><td colspan="6" class="py-8 text-center text-racing-muted">Loading...</td></tr>
               </tbody>
             </table>
           </div>

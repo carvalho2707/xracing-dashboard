@@ -2,12 +2,12 @@
 
 let usersSparkline, recordingsSparkline;
 
-// Update live recordings count in header
+// Update live recordings count in header (from RTDB)
 async function updateLiveCount() {
-  const data = await fetchData('live');
+  const data = await fetchData('rtdb/live');
   if (!data) return;
 
-  const liveCount = parseInt(data.live_count) || 0;
+  const liveCount = data.totals?.liveRecordingsCount || 0;
   document.getElementById('headerLiveCount').textContent = liveCount;
 }
 

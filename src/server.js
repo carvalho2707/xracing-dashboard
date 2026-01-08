@@ -4,6 +4,7 @@ const path = require('path');
 const queries = require('./queries');
 const ga4 = require('./ga4');
 const bigquery = require('./bigquery');
+const firebase = require('./firebase');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,6 +31,37 @@ app.get('/api/live-monitoring', async (req, res) => {
   } catch (error) {
     console.error('Error fetching live monitoring:', error);
     res.status(500).json({ error: 'Failed to fetch live monitoring' });
+  }
+});
+
+// Firebase RTDB - Real-time live recordings
+app.get('/api/rtdb/live', async (req, res) => {
+  try {
+    const data = await firebase.getLiveSummary();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching RTDB live data:', error);
+    res.status(500).json({ error: 'Failed to fetch RTDB live data' });
+  }
+});
+
+app.get('/api/rtdb/live/tracks', async (req, res) => {
+  try {
+    const data = await firebase.getLiveTrackRecordings();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching RTDB track recordings:', error);
+    res.status(500).json({ error: 'Failed to fetch track recordings' });
+  }
+});
+
+app.get('/api/rtdb/live/notrack', async (req, res) => {
+  try {
+    const data = await firebase.getLiveNoTrackRecordings();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching RTDB noTrack recordings:', error);
+    res.status(500).json({ error: 'Failed to fetch noTrack recordings' });
   }
 });
 

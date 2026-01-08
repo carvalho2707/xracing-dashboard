@@ -913,6 +913,59 @@ const queries = {
       FROM total_users
     `);
     return result.rows[0];
+  },
+
+  // Get track names by IDs (for RTDB enrichment)
+  async getTracksByIds(trackIds) {
+    if (!trackIds || trackIds.length === 0) return {};
+
+    const result = await db.query(`
+      SELECT id, name, location_city, location_country
+      FROM tracks
+      WHERE id = ANY($1)
+    `, [trackIds]);
+
+    // Return as a map: { trackId: { name, location_city, location_country } }
+    const trackMap = {};
+    result.rows.forEach(row => {
+      trackMap[row.id] = {
+        name: row.name,
+        locationCity: row.location_city,
+        locationCountry: row.location_country
+      };
+    });
+    return trackMap;
+  },
+
+  // Get recording details by IDs (for RTDB enrichment)
+  async getRecordingsByIds(recordingIds) {
+    if (!recordingIds || recordingIds.length === 0) return {};
+
+    const result = await db.query(`
+      SELECT
+        r.id,
+        r.status,
+        r.created_at,
+        u.username,
+        u.first_name,
+        u.last_name
+      FROM recordings r
+      JOIN users u ON r.driver_id = u.id
+      WHERE r.id = ANY($1)
+    `, [recordingIds]);
+
+    // Return as a map: { recordingId: { ... } }
+    const recordingMap = {};
+    result.rows.forEach(row => {
+      recordingMap[row.id] = {
+        status: row.status,
+        createdAt: row.created_at,
+        username: row.username,
+        firstName: row.first_name,
+        lastName: row.last_name
+      };
+    });
+    return recordingMap;
   }
 };
 

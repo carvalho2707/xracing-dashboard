@@ -9,7 +9,9 @@
       "Bash(node test-ga4-api.js:*)",
       "Bash(node -e:*)",
       "Bash(pkill:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(timeout 5 npm start)",
+      "Bash(timeout 8 sh -c 'node src/server.js & sleep 3 && curl -s http://localhost:3000/api/rtdb/live')"
     ],
     "deny": [],
     "ask": []
