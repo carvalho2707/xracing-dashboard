@@ -139,7 +139,6 @@
       <div class="page-header-content">
         <div class="flex items-center gap-4">
           <h1 class="page-title">Screen Analysis</h1>
-          <span class="text-xs text-racing-muted px-2 py-1 bg-racing-card rounded">Last 30 days</span>
         </div>
         <button onclick="refreshData()" class="px-4 py-2 bg-racing-card hover:bg-racing-border text-sm rounded-lg transition-colors">
           Refresh
@@ -155,26 +154,38 @@
 
       <!-- Dashboard Content -->
       <div id="dashboard" class="hidden">
-        <!-- User Filter -->
+        <!-- Filters -->
         <div class="glass-card rounded-xl p-4 mb-6">
           <div class="flex flex-wrap items-center gap-4">
-            <div class="flex items-center gap-2 flex-1 min-w-[200px] max-w-md">
-              <input type="text" id="usernameFilter" placeholder="Filter by username..."
-                class="flex-1 px-4 py-2 bg-racing-dark border border-racing-border rounded-lg text-white placeholder-racing-muted focus:outline-none focus:border-racing-red text-sm">
-              <button onclick="applyUserFilter()" id="filterBtn"
-                class="px-4 py-2 bg-racing-red hover:bg-red-600 text-white font-medium rounded-lg transition-colors text-sm">
-                Filter
-              </button>
+            <!-- Date Range Filter -->
+            <div class="flex items-center gap-2">
+              <label class="text-sm text-racing-muted">Period:</label>
+              <select id="daysFilter" onchange="onDaysFilterChange()"
+                class="px-3 py-2 bg-racing-dark border border-racing-border rounded-lg text-white text-sm focus:outline-none focus:border-racing-red">
+                <option value="7">Last 7 days</option>
+                <option value="14">Last 14 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="60">Last 60 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
             </div>
-            <div id="activeFilter" class="hidden flex items-center gap-2">
-              <span class="text-sm text-racing-muted">Showing data for:</span>
-              <span id="filterUsername" class="text-sm font-medium text-white px-2 py-1 bg-racing-red/20 rounded"></span>
-              <button onclick="clearUserFilter()" class="text-xs text-racing-muted hover:text-white transition-colors">
+
+            <!-- Username Filter -->
+            <div class="flex items-center gap-2">
+              <label class="text-sm text-racing-muted">User:</label>
+              <div class="relative min-w-[200px]">
+                <input type="text" id="usernameFilter" placeholder="All users"
+                  class="w-full px-3 py-2 bg-racing-dark border border-racing-border rounded-lg text-white placeholder-racing-muted focus:outline-none focus:border-racing-red text-sm"
+                  autocomplete="off">
+              </div>
+              <button id="clearUserBtn" onclick="clearUserFilter()" class="hidden text-racing-muted hover:text-white transition-colors p-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
               </button>
             </div>
+
+            <!-- Exclude Owners Toggle -->
             <div class="flex items-center gap-2 ml-auto">
               <label for="excludeOwners" class="text-sm text-racing-muted cursor-pointer">Exclude owners</label>
               <button id="excludeOwnersToggle" onclick="toggleExcludeOwners()"

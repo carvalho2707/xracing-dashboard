@@ -871,6 +871,18 @@ const queries = {
     return result.rows[0] || null;
   },
 
+  // Get all users for dropdown (sorted by name)
+  async getAllUsers() {
+    const result = await db.query(`
+      SELECT id, username, first_name, last_name
+      FROM users
+      ORDER BY
+        COALESCE(NULLIF(first_name, ''), username) ASC,
+        COALESCE(NULLIF(last_name, ''), '') ASC
+    `);
+    return result.rows;
+  },
+
   // Feature adoption rates
   async getFeatureAdoption() {
     const result = await db.query(`

@@ -1,6 +1,8 @@
 // User Timeline page JavaScript
 
 let currentUser = null;
+let selectedUser = null; // User selected from autocomplete
+let userAutocomplete = null;
 
 // Initialize date inputs with default values (last 7 days)
 function initDateInputs() {
@@ -84,31 +86,42 @@ function showError(message) {
 
 // Search for user and load their events
 async function searchUser() {
-  const username = document.getElementById('usernameInput').value.trim();
   const startDate = document.getElementById('startDate').value;
   const endDate = document.getElementById('endDate').value;
 
-  if (!username) {
-    showError('Please enter a username');
-    return;
+  // Use selected user from autocomplete, or try to lookup by input value
+  if (!selectedUser) {
+    const username = document.getElementById('usernameInput').value.trim();
+    if (!username) {
+      showError('Please select a user');
+      return;
+    }
+
+    // Try to lookup by username if user typed manually
+    hideAllStates();
+    document.getElementById('loading').classList.remove('hidden');
+
+    try {
+      const userResponse = await fetch(`/api/users/lookup?username=${encodeURIComponent(username)}`);
+      if (!userResponse.ok) {
+        if (userResponse.status === 404) {
+          showError(`User "${username}" not found`);
+          return;
+        }
+        throw new Error('Failed to lookup user');
+      }
+      selectedUser = await userResponse.json();
+    } catch (error) {
+      showError(error.message || 'Failed to lookup user');
+      return;
+    }
   }
 
   hideAllStates();
   document.getElementById('loading').classList.remove('hidden');
 
   try {
-    // First, lookup the user by username
-    const userResponse = await fetch(`/api/users/lookup?username=${encodeURIComponent(username)}`);
-
-    if (!userResponse.ok) {
-      if (userResponse.status === 404) {
-        showError(`User "${username}" not found`);
-        return;
-      }
-      throw new Error('Failed to lookup user');
-    }
-
-    currentUser = await userResponse.json();
+    currentUser = selectedUser;
 
     // Show user info
     document.getElementById('userInfo').classList.remove('hidden');
@@ -247,6 +260,18 @@ function renderTimeline(data) {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   initDateInputs();
+
+  // Initialize user autocomplete
+  userAutocomplete = initUserAutocomplete('usernameInput',
+    // onSelect callback
+    (user) => {
+      selectedUser = user;
+    },
+    // onClear callback
+    () => {
+      selectedUser = null;
+    }
+  );
 
   // Allow Enter key to search
   document.getElementById('usernameInput').addEventListener('keypress', (e) => {

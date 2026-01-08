@@ -246,6 +246,154 @@ function getPageHeaderHTML(title, showLiveIndicator = false) {
 }
 
 // ============================================
+// User Autocomplete Component
+// ============================================
+
+let allUsersCache = null;
+
+async function loadAllUsers() {
+  if (allUsersCache) return allUsersCache;
+  const users = await fetchData('users');
+  if (users) {
+    allUsersCache = users;
+  }
+  return users || [];
+}
+
+function getUserDisplayName(user) {
+  if (user.first_name || user.last_name) {
+    return `${user.first_name || ''} ${user.last_name || ''}`.trim();
+  }
+  return user.username;
+}
+
+function initUserAutocomplete(inputId, onSelect, onClear) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  // Create dropdown container
+  const container = input.parentElement;
+  container.style.position = 'relative';
+
+  const dropdown = document.createElement('div');
+  dropdown.id = `${inputId}-dropdown`;
+  dropdown.className = 'absolute top-full left-0 right-0 mt-1 bg-racing-card border border-racing-border rounded-lg shadow-xl z-50 max-h-64 overflow-y-auto hidden';
+  container.appendChild(dropdown);
+
+  let users = [];
+  let selectedIndex = -1;
+
+  // Load users on focus
+  input.addEventListener('focus', async () => {
+    if (users.length === 0) {
+      users = await loadAllUsers();
+    }
+    filterAndShowDropdown('');
+  });
+
+  // Filter on input
+  input.addEventListener('input', (e) => {
+    filterAndShowDropdown(e.target.value);
+    selectedIndex = -1;
+  });
+
+  // Keyboard navigation
+  input.addEventListener('keydown', (e) => {
+    const items = dropdown.querySelectorAll('.user-option');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+      updateSelection(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedIndex = Math.max(selectedIndex - 1, 0);
+      updateSelection(items);
+    } else if (e.key === 'Enter' && selectedIndex >= 0) {
+      e.preventDefault();
+      items[selectedIndex]?.click();
+    } else if (e.key === 'Escape') {
+      hideDropdown();
+    }
+  });
+
+  // Hide on click outside
+  document.addEventListener('click', (e) => {
+    if (!container.contains(e.target)) {
+      hideDropdown();
+    }
+  });
+
+  function filterAndShowDropdown(query) {
+    const filtered = users.filter(user => {
+      const searchStr = `${user.username} ${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
+      return searchStr.includes(query.toLowerCase());
+    }).slice(0, 50); // Limit to 50 results
+
+    if (filtered.length === 0) {
+      dropdown.innerHTML = '<div class="px-4 py-3 text-racing-muted text-sm">No users found</div>';
+    } else {
+      dropdown.innerHTML = filtered.map((user, idx) => {
+        const displayName = getUserDisplayName(user);
+        const subtitle = user.first_name ? `@${user.username}` : '';
+        return `
+          <div class="user-option px-4 py-2 hover:bg-racing-border cursor-pointer transition-colors ${idx === selectedIndex ? 'bg-racing-border' : ''}"
+               data-user-id="${user.id}" data-username="${user.username}">
+            <div class="text-white text-sm">${displayName}</div>
+            ${subtitle ? `<div class="text-racing-muted text-xs">${subtitle}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+
+      // Add click handlers
+      dropdown.querySelectorAll('.user-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+          const userId = opt.dataset.userId;
+          const username = opt.dataset.username;
+          const user = users.find(u => u.id === userId);
+          input.value = getUserDisplayName(user);
+          input.dataset.userId = userId;
+          input.dataset.username = username;
+          hideDropdown();
+          if (onSelect) onSelect(user);
+        });
+      });
+    }
+
+    dropdown.classList.remove('hidden');
+  }
+
+  function updateSelection(items) {
+    items.forEach((item, idx) => {
+      if (idx === selectedIndex) {
+        item.classList.add('bg-racing-border');
+        item.scrollIntoView({ block: 'nearest' });
+      } else {
+        item.classList.remove('bg-racing-border');
+      }
+    });
+  }
+
+  function hideDropdown() {
+    dropdown.classList.add('hidden');
+    selectedIndex = -1;
+  }
+
+  // Return control functions
+  return {
+    clear: () => {
+      input.value = '';
+      delete input.dataset.userId;
+      delete input.dataset.username;
+      if (onClear) onClear();
+    },
+    getValue: () => ({
+      userId: input.dataset.userId,
+      username: input.dataset.username
+    })
+  };
+}
+
+// ============================================
 // Initialize on DOM Ready
 // ============================================
 

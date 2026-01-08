@@ -4,6 +4,7 @@ let screensData = [];
 let currentUserId = null;
 let currentUsername = null;
 let excludeOwners = false;
+let daysFilter = 30;
 
 // Get color for action based on action label (action_type or eventName)
 function getActionColor(actionLabel) {
@@ -112,7 +113,7 @@ function renderScreenCard(screen, maxEvents) {
 
 // Load and render all screens
 async function loadScreens() {
-  let url = 'ga4/screen-actions?limit=30';
+  let url = `ga4/screen-actions?days=${daysFilter}`;
   if (currentUserId) {
     url += `&userId=${encodeURIComponent(currentUserId)}`;
   }
@@ -165,16 +166,12 @@ async function openScreenDetail(screenName) {
   document.getElementById('modalScreenName').textContent = formatScreenName(screenName);
 
   try {
-    let url = `ga4/screen-actions/${encodeURIComponent(screenName)}`;
-    const params = [];
+    let url = `ga4/screen-actions/${encodeURIComponent(screenName)}?days=${daysFilter}`;
     if (currentUserId) {
-      params.push(`userId=${encodeURIComponent(currentUserId)}`);
+      url += `&userId=${encodeURIComponent(currentUserId)}`;
     }
     if (excludeOwners) {
-      params.push('excludeOwners=true');
-    }
-    if (params.length > 0) {
-      url += '?' + params.join('&');
+      url += '&excludeOwners=true';
     }
     const data = await fetchData(url);
 
@@ -249,6 +246,12 @@ document.getElementById('screenModal')?.addEventListener('click', (e) => {
   }
 });
 
+// Handle days filter change
+async function onDaysFilterChange() {
+  daysFilter = parseInt(document.getElementById('daysFilter').value) || 30;
+  await refreshData();
+}
+
 // Toggle exclude owners
 async function toggleExcludeOwners() {
   excludeOwners = !excludeOwners;
@@ -275,56 +278,19 @@ async function toggleExcludeOwners() {
   await refreshData();
 }
 
-// Apply user filter
-async function applyUserFilter() {
-  const username = document.getElementById('usernameFilter').value.trim();
-  if (!username) return;
-
-  document.getElementById('filterBtn').disabled = true;
-  document.getElementById('filterBtn').textContent = 'Loading...';
-
-  try {
-    // Look up user by username
-    const user = await fetchData(`users/lookup?username=${encodeURIComponent(username)}`);
-    if (!user || !user.id) {
-      alert('User not found');
-      return;
-    }
-
-    currentUserId = user.id;
-    currentUsername = user.username;
-
-    // Update UI to show active filter
-    document.getElementById('activeFilter').classList.remove('hidden');
-    document.getElementById('filterUsername').textContent = currentUsername;
-
-    // Reload data with filter
-    await refreshData();
-
-  } catch (error) {
-    console.error('Error applying filter:', error);
-    alert('Error looking up user');
-  } finally {
-    document.getElementById('filterBtn').disabled = false;
-    document.getElementById('filterBtn').textContent = 'Filter';
-  }
-}
+// User autocomplete instance
+let userAutocomplete = null;
 
 // Clear user filter
 async function clearUserFilter() {
   currentUserId = null;
   currentUsername = null;
-  document.getElementById('usernameFilter').value = '';
-  document.getElementById('activeFilter').classList.add('hidden');
+  if (userAutocomplete) {
+    userAutocomplete.clear();
+  }
+  document.getElementById('clearUserBtn').classList.add('hidden');
   await refreshData();
 }
-
-// Handle enter key on username input
-document.getElementById('usernameFilter')?.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    applyUserFilter();
-  }
-});
 
 // Refresh data
 async function refreshData() {
@@ -338,7 +304,28 @@ async function refreshData() {
 }
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', refreshData);
+document.addEventListener('DOMContentLoaded', () => {
+  // Initialize user autocomplete
+  userAutocomplete = initUserAutocomplete('usernameFilter',
+    // onSelect callback
+    async (user) => {
+      currentUserId = user.id;
+      currentUsername = user.username;
+      document.getElementById('clearUserBtn').classList.remove('hidden');
+      await refreshData();
+    },
+    // onClear callback
+    async () => {
+      currentUserId = null;
+      currentUsername = null;
+      document.getElementById('clearUserBtn').classList.add('hidden');
+      await refreshData();
+    }
+  );
+
+  // Load initial data
+  refreshData();
+});
 
 // Auto-refresh every 5 minutes (only if no filter active)
 setInterval(() => {
