@@ -4,7 +4,7 @@ let screensData = [];
 let currentUserId = null;
 let currentUsername = null;
 let excludeOwners = false;
-let daysFilter = 30;
+let daysFilter = 'ytd'; // Default to current year
 
 // Get color for action based on action label (action_type or eventName)
 function getActionColor(actionLabel) {
@@ -111,9 +111,24 @@ function renderScreenCard(screen, maxEvents) {
   `;
 }
 
+// Build period query params based on filter value
+function getPeriodParams() {
+  if (daysFilter === 'all') {
+    return 'days=9999'; // Large number for "all time"
+  } else if (daysFilter === 'ytd') {
+    // Calculate days since start of year
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const daysSinceYearStart = Math.ceil((now - startOfYear) / (1000 * 60 * 60 * 24));
+    return `days=${daysSinceYearStart}`;
+  } else {
+    return `days=${daysFilter}`;
+  }
+}
+
 // Load and render all screens
 async function loadScreens() {
-  let url = `ga4/screen-actions?days=${daysFilter}`;
+  let url = `ga4/screen-actions?${getPeriodParams()}`;
   if (currentUserId) {
     url += `&userId=${encodeURIComponent(currentUserId)}`;
   }
@@ -166,7 +181,7 @@ async function openScreenDetail(screenName) {
   document.getElementById('modalScreenName').textContent = formatScreenName(screenName);
 
   try {
-    let url = `ga4/screen-actions/${encodeURIComponent(screenName)}?days=${daysFilter}`;
+    let url = `ga4/screen-actions/${encodeURIComponent(screenName)}?${getPeriodParams()}`;
     if (currentUserId) {
       url += `&userId=${encodeURIComponent(currentUserId)}`;
     }
@@ -248,7 +263,9 @@ document.getElementById('screenModal')?.addEventListener('click', (e) => {
 
 // Handle days filter change
 async function onDaysFilterChange() {
-  daysFilter = parseInt(document.getElementById('daysFilter').value) || 30;
+  const value = document.getElementById('daysFilter').value;
+  // Handle string values (ytd, all) or numeric days
+  daysFilter = isNaN(parseInt(value)) ? value : parseInt(value);
   await refreshData();
 }
 

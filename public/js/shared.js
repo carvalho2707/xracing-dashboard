@@ -277,7 +277,7 @@ function initUserAutocomplete(inputId, onSelect, onClear) {
 
   const dropdown = document.createElement('div');
   dropdown.id = `${inputId}-dropdown`;
-  dropdown.className = 'absolute top-full left-0 right-0 mt-1 bg-racing-card border border-racing-border rounded-lg shadow-xl z-50 max-h-64 overflow-y-auto hidden';
+  dropdown.className = 'absolute top-full left-0 right-0 mt-1 bg-racing-card border border-racing-border rounded-lg shadow-xl z-[100] max-h-64 overflow-y-auto hidden';
   container.appendChild(dropdown);
 
   let users = [];
