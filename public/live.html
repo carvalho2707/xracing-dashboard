@@ -139,17 +139,22 @@
 
       <!-- Dashboard Content -->
       <div id="dashboard" class="hidden space-y-6">
-        <!-- Live Status Summary -->
+        <!-- Today's Activity Summary -->
         <div class="glass-card rounded-xl p-6">
           <div class="flex items-center mb-6">
             <span class="pulse-dot w-3 h-3 bg-red-500 rounded-full mr-3"></span>
-            <h2 class="text-xl font-bold text-white">Live Status</h2>
+            <h2 class="text-xl font-bold text-white">Today's Activity</h2>
             <span class="ml-3 text-xs px-2 py-1 rounded bg-racing-border text-racing-muted">RTDB</span>
+            <span class="ml-2 text-xs text-racing-muted">Resets at 00:10</span>
           </div>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-6">
+            <div class="text-center">
+              <p id="totalRecordingsCount" class="text-4xl font-bold text-white">-</p>
+              <p class="text-sm text-racing-muted mt-1">Total Recordings</p>
+            </div>
             <div class="text-center">
               <p id="totalLiveCount" class="text-4xl font-bold text-red-500">-</p>
-              <p class="text-sm text-racing-muted mt-1">Live Recordings</p>
+              <p class="text-sm text-racing-muted mt-1">Live Now</p>
             </div>
             <div class="text-center">
               <p id="totalViews" class="text-4xl font-bold text-cyan-400">-</p>
@@ -160,8 +165,8 @@
               <p class="text-sm text-racing-muted mt-1">Active Tracks</p>
             </div>
             <div class="text-center">
-              <p id="noTrackCount" class="text-4xl font-bold text-purple-400">-</p>
-              <p class="text-sm text-racing-muted mt-1">Free Driving Live</p>
+              <p class="text-4xl font-bold text-purple-400"><span id="noTrackCount">-</span> <span class="text-lg text-red-400">(<span id="noTrackLiveCount">-</span>)</span></p>
+              <p class="text-sm text-racing-muted mt-1">Free Driving (Live)</p>
             </div>
           </div>
         </div>
@@ -170,8 +175,9 @@
         <div class="glass-card rounded-xl p-6">
           <div class="flex items-center justify-between mb-4">
             <div class="flex items-center">
-              <span class="pulse-dot w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+              <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
               <h3 class="text-lg font-semibold text-white">Track Days</h3>
+              <span class="ml-2 text-xs text-racing-muted">Today</span>
             </div>
             <div class="flex items-center gap-4">
               <span class="text-sm text-racing-muted">
@@ -196,8 +202,9 @@
         <div class="glass-card rounded-xl p-6">
           <div class="flex items-center justify-between mb-4">
             <div class="flex items-center">
-              <span class="pulse-dot w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+              <span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
               <h3 class="text-lg font-semibold text-white">Free Driving</h3>
+              <span class="ml-2 text-xs text-racing-muted">Today</span>
             </div>
             <div class="flex items-center gap-4">
               <span class="text-sm text-racing-muted">

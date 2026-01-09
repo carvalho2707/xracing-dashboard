@@ -63,8 +63,8 @@ const UPLOADING_STATUS = '1';
 const ENDED_STATUS = '2';
 
 /**
- * Get all live track recordings with viewer counts
- * Returns: Array of track summaries with recordings
+ * Get all track recordings from RTDB (today's activity)
+ * Returns: Array of track summaries with all recordings (live, uploading, ended)
  */
 async function getLiveTrackRecordings() {
   const database = initFirebase();
@@ -96,19 +96,23 @@ async function getLiveTrackRecordings() {
         if (!metadata) return;
 
         const status = metadata.s;
+
+        // Count live recordings separately
         if (status === LIVE_STATUS) {
           liveCount++;
-          recordings.push({
-            recordingId: key,
-            driverName: metadata.driverName || metadata.dn || 'Unknown',
-            status: status,
-            carName: metadata.carName || metadata.cn || null,
-          });
         }
+
+        // Include ALL recordings (live, uploading, ended)
+        recordings.push({
+          recordingId: key,
+          driverName: metadata.driverName || metadata.dn || 'Unknown',
+          status: status,
+          carName: metadata.carName || metadata.cn || null,
+        });
       });
 
-      // Only include tracks with live recordings
-      if (liveCount > 0) {
+      // Include tracks with any recordings (not just live)
+      if (recordings.length > 0) {
         // Count current viewers from presence
         const viewerCount = trackData.viewers ? Object.keys(trackData.viewers).length : 0;
 
@@ -118,6 +122,7 @@ async function getLiveTrackRecordings() {
           totalViewCount: trackData.totalViewCount || 0,
           currentViewers: viewerCount,
           liveRecordingsCount: liveCount,
+          totalRecordingsCount: recordings.length,
           recordings: recordings
         });
       }
@@ -125,14 +130,14 @@ async function getLiveTrackRecordings() {
 
     return tracks;
   } catch (error) {
-    console.error('Error fetching live track recordings:', error);
+    console.error('Error fetching track recordings:', error);
     return [];
   }
 }
 
 /**
- * Get all live noTrack recordings with viewer counts
- * Returns: Array of recordings without track association
+ * Get all noTrack recordings from RTDB (today's activity)
+ * Returns: Array of recordings without track association (live, uploading, ended)
  */
 async function getLiveNoTrackRecordings() {
   const database = initFirebase();
@@ -140,7 +145,8 @@ async function getLiveNoTrackRecordings() {
 
   try {
     const noTrackRef = database.ref(`${getBasePath()}/noTrack`);
-    const snapshot = await noTrackRef.orderByChild('metadata/s').equalTo(LIVE_STATUS).once('value');
+    // Fetch ALL recordings, not just live ones
+    const snapshot = await noTrackRef.once('value');
 
     if (!snapshot.exists()) return [];
 
@@ -241,8 +247,12 @@ async function getLiveSummary() {
   }
 
   const trackLiveCount = trackRecordings.reduce((sum, t) => sum + t.liveRecordingsCount, 0);
+  const trackTotalCount = trackRecordings.reduce((sum, t) => sum + t.totalRecordingsCount, 0);
   const trackViewers = trackRecordings.reduce((sum, t) => sum + t.currentViewers, 0);
   const trackTotalViews = trackRecordings.reduce((sum, t) => sum + (t.totalViewCount || 0), 0);
+
+  // Count live vs total for noTrack recordings
+  const noTrackLiveCount = noTrackRecordings.filter(r => r.status === LIVE_STATUS).length;
   const noTrackViewers = noTrackRecordings.reduce((sum, r) => sum + r.currentViewers, 0);
   const noTrackTotalViews = noTrackRecordings.reduce((sum, r) => sum + (r.totalViewCount || 0), 0);
 
@@ -250,18 +260,21 @@ async function getLiveSummary() {
     tracks: {
       activeTracksCount: trackRecordings.length,
       liveRecordingsCount: trackLiveCount,
+      totalRecordingsCount: trackTotalCount,
       currentViewers: trackViewers,
       totalViews: trackTotalViews,
       data: trackRecordings
     },
     noTrack: {
-      liveRecordingsCount: noTrackRecordings.length,
+      liveRecordingsCount: noTrackLiveCount,
+      totalRecordingsCount: noTrackRecordings.length,
       currentViewers: noTrackViewers,
       totalViews: noTrackTotalViews,
       data: noTrackRecordings
     },
     totals: {
-      liveRecordingsCount: trackLiveCount + noTrackRecordings.length,
+      liveRecordingsCount: trackLiveCount + noTrackLiveCount,
+      totalRecordingsCount: trackTotalCount + noTrackRecordings.length,
       currentViewers: trackViewers + noTrackViewers,
       totalViews: trackTotalViews + noTrackTotalViews
     }

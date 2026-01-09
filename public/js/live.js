@@ -1,5 +1,22 @@
 // Live page specific JavaScript - RTDB-powered
 
+// Copy recording ID to clipboard
+async function copyRecordingId(recordingId, element) {
+  try {
+    await navigator.clipboard.writeText(recordingId);
+    // Show feedback
+    const originalText = element.textContent;
+    element.textContent = 'Copied!';
+    element.classList.add('text-green-400');
+    setTimeout(() => {
+      element.textContent = originalText;
+      element.classList.remove('text-green-400');
+    }, 1000);
+  } catch (err) {
+    console.error('Failed to copy:', err);
+  }
+}
+
 // Status helpers
 // RTDB status: 0=LIVE, 1=UPLOADING, 2=ENDED
 // DB status: 0=LIVE, 1=UPLOADING, 2=ENDED, etc.
@@ -7,7 +24,7 @@ function getRTDBStatusName(status) {
   if (status === '0') return 'LIVE';
   if (status === '1') return 'UPLOADING';
   if (status === '2') return 'ENDED';
-  return 'UNKNOWN';
+  return 'MIGRATED';
 }
 
 function getRTDBStatusColor(status) {
@@ -43,25 +60,33 @@ async function updateRTDBLiveData() {
     return;
   }
 
-  // Update summary stats
-  document.getElementById('totalLiveCount').textContent = data.totals?.liveRecordingsCount || 0;
+  // Update summary stats - show both live and total
+  const liveCount = data.totals?.liveRecordingsCount || 0;
+  const totalCount = data.totals?.totalRecordingsCount || 0;
+  document.getElementById('totalLiveCount').textContent = liveCount;
+  document.getElementById('totalRecordingsCount').textContent = totalCount;
   document.getElementById('totalViews').textContent = data.totals?.totalViews || 0;
   document.getElementById('activeTracksCount').textContent = data.tracks?.activeTracksCount || 0;
-  document.getElementById('noTrackCount').textContent = data.noTrack?.liveRecordingsCount || 0;
+  document.getElementById('noTrackCount').textContent = data.noTrack?.totalRecordingsCount || 0;
+  document.getElementById('noTrackLiveCount').textContent = data.noTrack?.liveRecordingsCount || 0;
 
   // Update track section
   document.getElementById('trackTotalViews').textContent = data.tracks?.totalViews || 0;
   document.getElementById('trackViewerCount').textContent = data.tracks?.currentViewers || 0;
+  const trackTotal = data.tracks?.totalRecordingsCount || 0;
+  const trackLive = data.tracks?.liveRecordingsCount || 0;
   document.getElementById('trackRecordingsCount').textContent =
-    `${data.tracks?.liveRecordingsCount || 0} recording${data.tracks?.liveRecordingsCount !== 1 ? 's' : ''}`;
+    `${trackTotal} recording${trackTotal !== 1 ? 's' : ''} (${trackLive} live)`;
 
   renderTrackRecordings(data.tracks?.data || []);
 
   // Update noTrack section
   document.getElementById('noTrackTotalViews').textContent = data.noTrack?.totalViews || 0;
   document.getElementById('noTrackViewerCount').textContent = data.noTrack?.currentViewers || 0;
+  const noTrackTotal = data.noTrack?.totalRecordingsCount || 0;
+  const noTrackLive = data.noTrack?.liveRecordingsCount || 0;
   document.getElementById('noTrackRecordingsCount').textContent =
-    `${data.noTrack?.liveRecordingsCount || 0} recording${data.noTrack?.liveRecordingsCount !== 1 ? 's' : ''}`;
+    `${noTrackTotal} recording${noTrackTotal !== 1 ? 's' : ''} (${noTrackLive} live)`;
 
   renderNoTrackRecordings(data.noTrack?.data || []);
 }
@@ -71,7 +96,7 @@ function renderTrackRecordings(tracks) {
   const container = document.getElementById('trackRecordingsContainer');
 
   if (!tracks || tracks.length === 0) {
-    container.innerHTML = `<div class="py-8 text-center text-racing-muted">No active track day recordings</div>`;
+    container.innerHTML = `<div class="py-8 text-center text-racing-muted">No track day recordings today</div>`;
     return;
   }
 
@@ -101,9 +126,13 @@ function renderTrackRecordings(tracks) {
             </svg>
             ${track.currentViewers} watching
           </span>
+          <span class="text-xs px-2 py-1 rounded bg-racing-card text-racing-muted">
+            ${track.totalRecordingsCount || track.recordings.length} total
+          </span>
+          ${track.liveRecordingsCount > 0 ? `
           <span class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400">
             ${track.liveRecordingsCount} live
-          </span>
+          </span>` : ''}
         </div>
       </div>
       <div class="bg-racing-dark/30 rounded-b-lg overflow-x-auto">
@@ -120,7 +149,11 @@ function renderTrackRecordings(tracks) {
           <tbody>
             ${track.recordings.map(rec => `
               <tr class="border-b border-racing-border/30 last:border-0 hover:bg-racing-border/20">
-                <td class="py-2 px-3 text-racing-muted text-xs font-mono">${rec.recordingId.substring(0, 8)}...</td>
+                <td class="py-2 px-3">
+                  <span class="text-racing-muted text-xs font-mono cursor-pointer hover:text-white transition-colors"
+                        onclick="copyRecordingId('${rec.recordingId}', this)"
+                        title="Click to copy: ${rec.recordingId}">${rec.recordingId.substring(0, 8)}...</span>
+                </td>
                 <td class="py-2 px-3">
                   <span class="text-white text-sm">${rec.username || rec.driverName}</span>
                 </td>
@@ -145,14 +178,18 @@ function renderNoTrackRecordings(recordings) {
   const tbody = document.getElementById('noTrackTable');
 
   if (!recordings || recordings.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-racing-muted">No active free driving recordings</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-racing-muted">No free driving recordings today</td></tr>';
     return;
   }
 
   tbody.innerHTML = recordings.map(rec => {
     return `
       <tr class="border-b border-racing-border/50 hover:bg-racing-border/20">
-        <td class="py-3 px-2 text-racing-muted text-xs font-mono">${rec.recordingId.substring(0, 8)}...</td>
+        <td class="py-3 px-2">
+          <span class="text-racing-muted text-xs font-mono cursor-pointer hover:text-white transition-colors"
+                onclick="copyRecordingId('${rec.recordingId}', this)"
+                title="Click to copy: ${rec.recordingId}">${rec.recordingId.substring(0, 8)}...</span>
+        </td>
         <td class="py-3 px-2">
           <span class="text-white font-medium">${rec.username || rec.driverName}</span>
         </td>
