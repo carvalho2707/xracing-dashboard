@@ -141,50 +141,25 @@ async function getLiveTrackRecordings() {
  */
 async function getLiveNoTrackRecordings() {
   const database = initFirebase();
- if (!database) {
-    console.log('[noTrack] Firebase not initialized, returning empty array');
-    return [];
-  }
+  if (!database) return [];
 
   try {
-    const rtdbFullPath = `${getBasePath()}/noTrack`;
-    console.log(`[noTrack] Fetching from RTDB path: ${rtdbFullPath}`);
-
-    const noTrackRef = database.ref(rtdbFullPath);
+    const noTrackRef = database.ref(`${getBasePath()}/noTrack`);
     // Fetch ALL recordings, not just live ones
     const snapshot = await noTrackRef.once('value');
 
-    if (!snapshot.exists()) {
-      console.log('[noTrack] Snapshot does not exist - no data at path');
-      return [];
-    }
-
-    console.log(`[noTrack] Snapshot exists, numChildren: ${snapshot.numChildren()}`);
+    if (!snapshot.exists()) return [];
 
     const recordings = [];
-    let skippedNoData = 0;
-    let skippedNoMetadata = 0;
 
     snapshot.forEach((recordingSnapshot) => {
       const recordingId = recordingSnapshot.key;
       const data = recordingSnapshot.val();
 
-      if (!data) {
-        skippedNoData++;
-        console.log(`[noTrack] Skipping ${recordingId}: no data`);
-        return;
-      }
-
-      if (!data.metadata) {
-        skippedNoMetadata++;
-        console.log(`[noTrack] Skipping ${recordingId}: no metadata. Keys present: ${Object.keys(data).join(', ')}`);
-        return;
-      }
+      if (!data || !data.metadata) return;
 
       const metadata = data.metadata;
       const viewerCount = data.viewers ? Object.keys(data.viewers).length : 0;
-
-      console.log(`[noTrack] Found recording ${recordingId}: status=${metadata.s}, driver=${metadata.driverName || metadata.dna || metadata.dn || 'Unknown'}`);
 
       recordings.push({
         recordingId: recordingId,
@@ -202,10 +177,9 @@ async function getLiveNoTrackRecordings() {
       });
     });
 
-    console.log(`[noTrack] Summary: found=${recordings.length}, skippedNoData=${skippedNoData}, skippedNoMetadata=${skippedNoMetadata}`);
     return recordings;
   } catch (error) {
-    console.error('[noTrack] Error fetching noTrack recordings:', error);
+    console.error('Error fetching noTrack recordings:', error);
     return [];
   }
 }
@@ -214,12 +188,10 @@ async function getLiveNoTrackRecordings() {
  * Get combined live summary stats with track names and recording details from PostgreSQL
  */
 async function getLiveSummary() {
-  console.log('[getLiveSummary] Starting fetch...');
   const [trackRecordings, noTrackRecordings] = await Promise.all([
     getLiveTrackRecordings(),
     getLiveNoTrackRecordings()
   ]);
-  console.log(`[getLiveSummary] Fetched: tracks=${trackRecordings.length}, noTrack=${noTrackRecordings.length}`);
 
   // Collect all recording IDs for enrichment
   const allRecordingIds = [];
@@ -283,8 +255,6 @@ async function getLiveSummary() {
   const noTrackLiveCount = noTrackRecordings.filter(r => r.status === LIVE_STATUS).length;
   const noTrackViewers = noTrackRecordings.reduce((sum, r) => sum + r.currentViewers, 0);
   const noTrackTotalViews = noTrackRecordings.reduce((sum, r) => sum + (r.totalViewCount || 0), 0);
-
-  console.log(`[getLiveSummary] Final counts - tracks: ${trackTotalCount} (${trackLiveCount} live), noTrack: ${noTrackRecordings.length} (${noTrackLiveCount} live)`);
 
   return {
     tracks: {

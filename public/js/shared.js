@@ -17,8 +17,10 @@ function formatNumber(num) {
 }
 
 function formatDistance(meters) {
-  if (meters >= 1000000) return (meters / 1000).toFixed(0).toLocaleString() + ' km';
-  if (meters >= 1000) return (meters / 1000).toFixed(1) + ' km';
+  if (meters >= 1000) {
+    const km = Math.round(meters / 1000);
+    return km.toLocaleString() + ' km';
+  }
   return meters?.toFixed(0) + ' m';
 }
 

@@ -55,8 +55,6 @@ function getDBStatusColor(status) {
 // Fetch RTDB live data and update the UI
 async function updateRTDBLiveData() {
   const data = await fetchData('rtdb/live');
-  console.log('[updateRTDBLiveData] API response:', data);
-  console.log('[updateRTDBLiveData] noTrack data:', data?.noTrack);
   if (!data) {
     console.warn('No RTDB data available');
     return;
@@ -177,15 +175,12 @@ function renderTrackRecordings(tracks) {
 
 // Render noTrack recordings table
 function renderNoTrackRecordings(recordings) {
-  console.log('[renderNoTrackRecordings] Received recordings:', recordings?.length, recordings);
   const tbody = document.getElementById('noTrackTable');
 
   if (!recordings || recordings.length === 0) {
-    console.log('[renderNoTrackRecordings] No recordings to render');
     tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-racing-muted">No free driving recordings today</td></tr>';
     return;
   }
-  console.log('[renderNoTrackRecordings] Rendering', recordings.length, 'recordings');
 
   tbody.innerHTML = recordings.map(rec => {
     return `
