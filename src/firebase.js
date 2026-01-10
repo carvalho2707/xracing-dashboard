@@ -105,7 +105,7 @@ async function getLiveTrackRecordings() {
         // Include ALL recordings (live, uploading, ended)
         recordings.push({
           recordingId: key,
-          driverName: metadata.driverName || metadata.dn || 'Unknown',
+          driverName: metadata.driverName || metadata.dna || metadata.dn || 'Unknown',
           status: status,
           carName: metadata.carName || metadata.cn || null,
         });
@@ -163,7 +163,7 @@ async function getLiveNoTrackRecordings() {
 
       recordings.push({
         recordingId: recordingId,
-        driverName: metadata.driverName || metadata.dn || 'Unknown',
+        driverName: metadata.driverName || metadata.dna || metadata.dn || 'Unknown',
         status: metadata.s,
         carName: metadata.carName || metadata.cn || null,
         locationCity: metadata.locationCity || metadata.lc || null,
