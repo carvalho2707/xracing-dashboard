@@ -121,6 +121,8 @@ function getPeriodParams() {
     const startOfYear = new Date(now.getFullYear(), 0, 1);
     const daysSinceYearStart = Math.ceil((now - startOfYear) / (1000 * 60 * 60 * 24));
     return `days=${daysSinceYearStart}`;
+  } else if (daysFilter === 0) {
+    return 'days=0'; // Today only (uses intraday table)
   } else {
     return `days=${daysFilter}`;
   }

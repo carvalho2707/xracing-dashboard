@@ -550,7 +550,7 @@ app.get('/api/ga4/user-events', async (req, res) => {
 // Get all screens with their actions (from BigQuery - full action_type access)
 app.get('/api/ga4/screen-actions', async (req, res) => {
   try {
-    const days = parseInt(req.query.days) || 30;
+    const days = req.query.days !== undefined ? parseInt(req.query.days) : 30;
     const userId = req.query.userId || null;
     const excludeOwners = req.query.excludeOwners === 'true';
     const data = await bigquery.getScreenActions(days, userId, excludeOwners);
@@ -565,7 +565,7 @@ app.get('/api/ga4/screen-actions', async (req, res) => {
 app.get('/api/ga4/screen-actions/:screenName', async (req, res) => {
   try {
     const { screenName } = req.params;
-    const days = parseInt(req.query.days) || 30;
+    const days = req.query.days !== undefined ? parseInt(req.query.days) : 30;
     const userId = req.query.userId || null;
     const excludeOwners = req.query.excludeOwners === 'true';
     const data = await bigquery.getScreenActionDetails(screenName, days, userId, excludeOwners);

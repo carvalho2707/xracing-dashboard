@@ -68,16 +68,38 @@ async function getScreenActions(days = 30, userId = null, excludeOwners = false)
   const userFilter = userId ? `AND user_id = @userId` : '';
   const ownerFilter = excludeOwners ? `AND user_id NOT IN UNNEST(@excludedUsers)` : '';
 
+  // For today (days=0), use intraday table; otherwise use regular events tables
+  // For days >= 1, we combine both regular and intraday tables to get complete data
+  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+  let tableQuery;
+  if (days === 0) {
+    // Today only - just intraday
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+    `;
+  } else {
+    // Historical + intraday for complete data
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+      UNION ALL
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+    `;
+  }
+
   const query = `
+    WITH all_events AS (
+      ${tableQuery}
+    )
     SELECT
       ${getEventParam('firebase_screen')} as screen_name,
       event_name,
       ${getEventParam('action_type')} as action_type,
       COUNT(*) as event_count,
       COUNT(DISTINCT user_pseudo_id) as unique_users
-    FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
-    WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
-      AND ${getEventParam('firebase_screen')} IS NOT NULL
+    FROM all_events
+    WHERE ${getEventParam('firebase_screen')} IS NOT NULL
       ${userFilter}
       ${ownerFilter}
     GROUP BY screen_name, event_name, action_type
@@ -165,15 +187,34 @@ async function getScreenActionDetails(screenName, days = 30, userId = null, excl
   const userFilter = userId ? `AND user_id = @userId` : '';
   const ownerFilter = excludeOwners ? `AND user_id NOT IN UNNEST(@excludedUsers)` : '';
 
+  // For today (days=0), use intraday table; otherwise combine regular + intraday
+  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+  let tableQuery;
+  if (days === 0) {
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+    `;
+  } else {
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+      UNION ALL
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+    `;
+  }
+
   const query = `
+    WITH all_events AS (
+      ${tableQuery}
+    )
     SELECT
       event_name,
       ${getEventParam('action_type')} as action_type,
       COUNT(*) as event_count,
       COUNT(DISTINCT user_pseudo_id) as unique_users
-    FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
-    WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
-      AND ${getEventParam('firebase_screen')} = @screenName
+    FROM all_events
+    WHERE ${getEventParam('firebase_screen')} = @screenName
       ${userFilter}
       ${ownerFilter}
     GROUP BY event_name, action_type
