@@ -589,6 +589,70 @@ app.get('/api/bigquery/action-types', async (req, res) => {
 });
 
 // ============================================
+// Web Analytics Routes (Marketing Website)
+// ============================================
+
+// Get web analytics overview
+app.get('/api/web/overview', async (req, res) => {
+  try {
+    const days = req.query.days !== undefined ? parseInt(req.query.days) : 30;
+    const data = await bigquery.getWebOverview(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching web overview:', error);
+    res.status(500).json({ error: 'Failed to fetch web overview' });
+  }
+});
+
+// Get web page views breakdown
+app.get('/api/web/pages', async (req, res) => {
+  try {
+    const days = req.query.days !== undefined ? parseInt(req.query.days) : 30;
+    const data = await bigquery.getWebPages(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching web pages:', error);
+    res.status(500).json({ error: 'Failed to fetch web pages' });
+  }
+});
+
+// Get web traffic sources
+app.get('/api/web/traffic-sources', async (req, res) => {
+  try {
+    const days = req.query.days !== undefined ? parseInt(req.query.days) : 30;
+    const data = await bigquery.getWebTrafficSources(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching web traffic sources:', error);
+    res.status(500).json({ error: 'Failed to fetch web traffic sources' });
+  }
+});
+
+// Get web engagement metrics
+app.get('/api/web/engagement', async (req, res) => {
+  try {
+    const days = req.query.days !== undefined ? parseInt(req.query.days) : 30;
+    const data = await bigquery.getWebEngagement(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching web engagement:', error);
+    res.status(500).json({ error: 'Failed to fetch web engagement' });
+  }
+});
+
+// Get web events over time (for charts)
+app.get('/api/web/events-over-time', async (req, res) => {
+  try {
+    const days = req.query.days !== undefined ? parseInt(req.query.days) : 30;
+    const data = await bigquery.getWebEventsOverTime(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching web events over time:', error);
+    res.status(500).json({ error: 'Failed to fetch web events over time' });
+  }
+});
+
+// ============================================
 // Product Analytics API Routes (Tier 1/2/3)
 // ============================================
 

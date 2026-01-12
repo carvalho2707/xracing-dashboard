@@ -24,15 +24,12 @@ function initFirebase() {
       // Production: base64 encoded JSON
       const decoded = Buffer.from(process.env.FIREBASE_CREDENTIALS_BASE64, 'base64').toString('utf8');
       credentials = JSON.parse(decoded);
-      console.log('Firebase: Using base64 credentials');
     } else if (process.env.FIREBASE_CREDENTIALS_JSON) {
       // Alternative: raw JSON string
       credentials = JSON.parse(process.env.FIREBASE_CREDENTIALS_JSON);
-      console.log('Firebase: Using JSON credentials');
     } else if (process.env.FIREBASE_CREDENTIALS_PATH) {
       // Development: file path
       credentials = require(path.resolve(process.env.FIREBASE_CREDENTIALS_PATH));
-      console.log('Firebase: Using credentials file');
     } else {
       console.warn('Firebase credentials not configured');
       return null;
@@ -44,7 +41,6 @@ function initFirebase() {
     });
 
     db = admin.database();
-    console.log('Firebase RTDB connected');
     return db;
   } catch (error) {
     console.error('Failed to initialize Firebase:', error.message);

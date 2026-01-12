@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Screen Analysis - xracing dashboard</title>
+  <title>Web Analytics - xracing dashboard</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -44,27 +45,19 @@
       backdrop-filter: blur(10px);
       border: 1px solid rgba(48, 54, 61, 0.5);
     }
-    .screen-card {
+    .stat-card {
       background: linear-gradient(145deg, rgba(22, 27, 34, 0.9), rgba(13, 17, 23, 0.9));
       border: 1px solid rgba(48, 54, 61, 0.6);
-      transition: all 0.2s ease;
     }
-    .screen-card:hover {
-      border-color: rgba(229, 57, 53, 0.5);
-      transform: translateY(-2px);
-    }
-    .screen-card.expanded {
-      border-color: rgba(229, 57, 53, 0.8);
-    }
-    .action-bar {
-      height: 6px;
+    .source-bar {
+      height: 8px;
       background: rgba(48, 54, 61, 0.3);
-      border-radius: 3px;
+      border-radius: 4px;
       overflow: hidden;
     }
-    .action-bar-fill {
+    .source-bar-fill {
       height: 100%;
-      border-radius: 3px;
+      border-radius: 4px;
       transition: width 0.3s ease;
     }
   </style>
@@ -120,13 +113,13 @@
         </svg>
         <span>User Timeline</span>
       </a>
-      <a href="/screen-analysis.html" class="active">
+      <a href="/screen-analysis.html">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
         </svg>
         <span>Screen Analysis</span>
       </a>
-      <a href="/web-analytics.html">
+      <a href="/web-analytics.html" class="active">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
         </svg>
@@ -144,7 +137,8 @@
     <header class="page-header">
       <div class="page-header-content">
         <div class="flex items-center gap-4">
-          <h1 class="page-title">Screen Analysis</h1>
+          <h1 class="page-title">Web Analytics</h1>
+          <span class="px-2 py-1 text-xs bg-blue-500/20 text-blue-400 rounded">Marketing Website</span>
         </div>
         <button onclick="refreshData()" class="px-4 py-2 bg-racing-card hover:bg-racing-border text-sm rounded-lg transition-colors">
           Refresh
@@ -161,115 +155,84 @@
       <!-- Dashboard Content -->
       <div id="dashboard" class="hidden">
         <!-- Filters -->
-        <div class="glass-card rounded-xl p-4 mb-6 relative z-20">
+        <div class="glass-card rounded-xl p-4 mb-6">
           <div class="flex flex-wrap items-center gap-4">
-            <!-- Date Range Filter -->
             <div class="flex items-center gap-2">
               <label class="text-sm text-racing-muted">Period:</label>
               <select id="daysFilter" onchange="onDaysFilterChange()"
                 class="px-3 py-2 bg-racing-dark border border-racing-border rounded-lg text-white text-sm focus:outline-none focus:border-racing-red">
                 <option value="0">Today</option>
                 <option value="1">Yesterday</option>
-                <option value="7">Last 7 days</option>
+                <option value="7" selected>Last 7 days</option>
                 <option value="14">Last 14 days</option>
                 <option value="30">Last 30 days</option>
                 <option value="60">Last 60 days</option>
                 <option value="90">Last 90 days</option>
-                <option value="ytd" selected>Current year</option>
-                <option value="all">All time</option>
               </select>
             </div>
-
-            <!-- Username Filter -->
-            <div class="flex items-center gap-2">
-              <label class="text-sm text-racing-muted">User:</label>
-              <div class="relative min-w-[200px] z-30">
-                <input type="text" id="usernameFilter" placeholder="All users"
-                  class="w-full px-3 py-2 bg-racing-dark border border-racing-border rounded-lg text-white placeholder-racing-muted focus:outline-none focus:border-racing-red text-sm"
-                  autocomplete="off">
-              </div>
-              <button id="clearUserBtn" onclick="clearUserFilter()" class="hidden text-racing-muted hover:text-white transition-colors p-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            </div>
-
-            <!-- Exclude Owners Toggle -->
-            <div class="flex items-center gap-2 ml-auto">
-              <label for="excludeOwners" class="text-sm text-racing-muted cursor-pointer">Exclude owners</label>
-              <button id="excludeOwnersToggle" onclick="toggleExcludeOwners()"
-                class="relative w-11 h-6 bg-racing-border rounded-full transition-colors focus:outline-none">
-                <span id="excludeOwnersKnob" class="absolute left-1 top-1 w-4 h-4 bg-racing-muted rounded-full transition-transform"></span>
-              </button>
-            </div>
           </div>
         </div>
 
-        <!-- Summary Stats -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div class="glass-card rounded-xl p-4 text-center">
-            <p class="text-racing-muted text-xs mb-1">Total Screens</p>
-            <p id="totalScreens" class="text-2xl font-bold text-white">-</p>
+        <!-- Overview Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+          <div class="stat-card rounded-xl p-4 text-center">
+            <p class="text-racing-muted text-xs mb-1">Page Views</p>
+            <p id="pageViews" class="text-2xl font-bold text-racing-red">-</p>
           </div>
-          <div class="glass-card rounded-xl p-4 text-center">
+          <div class="stat-card rounded-xl p-4 text-center">
+            <p class="text-racing-muted text-xs mb-1">Sessions</p>
+            <p id="sessions" class="text-2xl font-bold text-white">-</p>
+          </div>
+          <div class="stat-card rounded-xl p-4 text-center">
+            <p class="text-racing-muted text-xs mb-1">Unique Visitors</p>
+            <p id="uniqueVisitors" class="text-2xl font-bold text-blue-400">-</p>
+          </div>
+          <div class="stat-card rounded-xl p-4 text-center">
+            <p class="text-racing-muted text-xs mb-1">New Visitors</p>
+            <p id="newVisitors" class="text-2xl font-bold text-green-400">-</p>
+          </div>
+          <div class="stat-card rounded-xl p-4 text-center">
             <p class="text-racing-muted text-xs mb-1">Total Events</p>
-            <p id="totalEventsCount" class="text-2xl font-bold text-racing-red">-</p>
+            <p id="totalEvents" class="text-2xl font-bold text-white">-</p>
           </div>
-          <div class="glass-card rounded-xl p-4 text-center">
-            <p class="text-racing-muted text-xs mb-1">Unique Actions</p>
-            <p id="uniqueActions" class="text-2xl font-bold text-white">-</p>
-          </div>
-          <div class="glass-card rounded-xl p-4 text-center">
-            <p class="text-racing-muted text-xs mb-1">Avg Events/Screen</p>
-            <p id="avgEventsPerScreen" class="text-2xl font-bold text-white">-</p>
+          <div class="stat-card rounded-xl p-4 text-center">
+            <p class="text-racing-muted text-xs mb-1">Pages/Session</p>
+            <p id="pagesPerSession" class="text-2xl font-bold text-purple-400">-</p>
           </div>
         </div>
 
-        <!-- Screen Cards Grid -->
-        <div id="screensGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <!-- Screen cards will be inserted here -->
-        </div>
-      </div>
-
-      <!-- Screen Detail Modal -->
-      <div id="screenModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="glass-card rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
-          <div class="p-6 border-b border-racing-border flex items-center justify-between">
-            <div>
-              <h2 id="modalScreenName" class="text-xl font-semibold text-white">-</h2>
-              <p class="text-sm text-racing-muted">Action breakdown</p>
-            </div>
-            <button onclick="closeModal()" class="p-2 hover:bg-racing-border rounded-lg transition-colors">
-              <svg class="w-5 h-5 text-racing-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
+        <!-- Chart -->
+        <div class="glass-card rounded-xl p-6 mb-6">
+          <h2 class="text-lg font-semibold text-white mb-4">Traffic Over Time</h2>
+          <div class="h-64">
+            <canvas id="trafficChart"></canvas>
           </div>
-          <div class="p-6 overflow-y-auto max-h-[60vh]">
-            <div id="modalLoading" class="flex items-center justify-center py-10">
-              <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-racing-red"></div>
+        </div>
+
+        <!-- Two Column Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <!-- Top Pages -->
+          <div class="glass-card rounded-xl p-6">
+            <h2 class="text-lg font-semibold text-white mb-4">Top Pages</h2>
+            <div id="topPages" class="space-y-3">
+              <!-- Pages will be inserted here -->
             </div>
-            <div id="modalContent" class="hidden">
-              <div class="flex gap-6 mb-6">
-                <div class="text-center">
-                  <p class="text-2xl font-bold text-blue-400" id="modalScreenViews">-</p>
-                  <p class="text-xs text-racing-muted">Screen Views</p>
-                </div>
-                <div class="text-center">
-                  <p class="text-2xl font-bold text-white" id="modalTotalEvents">-</p>
-                  <p class="text-xs text-racing-muted">Total Events</p>
-                </div>
-                <div class="text-center">
-                  <p class="text-2xl font-bold text-green-400" id="modalTotalUsers">-</p>
-                  <p class="text-xs text-racing-muted">Unique Users</p>
-                </div>
-              </div>
-              <h3 class="text-sm font-medium text-white mb-3">All Actions</h3>
-              <div id="modalActions" class="space-y-3">
-                <!-- Actions will be inserted here -->
-              </div>
+          </div>
+
+          <!-- Traffic Sources -->
+          <div class="glass-card rounded-xl p-6">
+            <h2 class="text-lg font-semibold text-white mb-4">Traffic Sources</h2>
+            <div id="trafficSources" class="space-y-3">
+              <!-- Sources will be inserted here -->
             </div>
+          </div>
+        </div>
+
+        <!-- Engagement Section -->
+        <div class="glass-card rounded-xl p-6">
+          <h2 class="text-lg font-semibold text-white mb-4">User Engagement</h2>
+          <div id="engagement" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- Engagement metrics will be inserted here -->
           </div>
         </div>
       </div>
@@ -277,6 +240,6 @@
   </div>
 
   <script src="/js/shared.js"></script>
-  <script src="/js/screen-analysis.js"></script>
+  <script src="/js/web-analytics.js"></script>
 </body>
 </html>

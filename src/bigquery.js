@@ -13,9 +13,6 @@ const DATASET_ID = `analytics_${GA4_PROPERTY_ID}`;
 
 function getClient() {
   if (!bigqueryClient) {
-    console.log('=== BigQuery Configuration ===');
-    console.log('GCP_PROJECT_ID:', GCP_PROJECT_ID);
-    console.log('DATASET_ID:', DATASET_ID);
 
     // Use same credentials as GA4
     if (process.env.GA4_CREDENTIALS_BASE64) {
@@ -40,8 +37,6 @@ function getClient() {
     } else {
       throw new Error('BigQuery credentials not configured');
     }
-    console.log('BigQuery client initialized');
-    console.log('==============================');
   }
   return bigqueryClient;
 }
@@ -363,6 +358,300 @@ async function getUserEvents(userId, startDate, endDate) {
   return Object.values(eventsByDate).sort((a, b) => b.date.localeCompare(a.date));
 }
 
+// Web Analytics Stream ID (marketing website)
+const WEB_STREAM_ID = '13282628457';
+
+// ============================================
+// WEB ANALYTICS FUNCTIONS
+// ============================================
+
+// Get web analytics overview (page views, sessions, users)
+async function getWebOverview(days = 30) {
+  const client = getClient();
+
+  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+  let tableQuery;
+  if (days === 0) {
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+      WHERE stream_id = '${WEB_STREAM_ID}'
+    `;
+  } else {
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+        AND stream_id = '${WEB_STREAM_ID}'
+      UNION ALL
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+      WHERE stream_id = '${WEB_STREAM_ID}'
+    `;
+  }
+
+  const query = `
+    WITH all_events AS (
+      ${tableQuery}
+    )
+    SELECT
+      COUNT(*) as total_events,
+      COUNT(DISTINCT user_pseudo_id) as unique_visitors,
+      COUNTIF(event_name = 'page_view') as page_views,
+      COUNTIF(event_name = 'session_start') as sessions,
+      COUNTIF(event_name = 'first_visit') as new_visitors,
+      COUNT(DISTINCT ${getEventParam('ga_session_id', 'int')}) as unique_sessions
+    FROM all_events
+  `;
+
+  const [rows] = await client.query({ query });
+  return rows[0] || {};
+}
+
+// Get web page views breakdown
+async function getWebPages(days = 30) {
+  const client = getClient();
+
+  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+  let tableQuery;
+  if (days === 0) {
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+      WHERE stream_id = '${WEB_STREAM_ID}'
+    `;
+  } else {
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+        AND stream_id = '${WEB_STREAM_ID}'
+      UNION ALL
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+      WHERE stream_id = '${WEB_STREAM_ID}'
+    `;
+  }
+
+  const query = `
+    WITH all_events AS (
+      ${tableQuery}
+    )
+    SELECT
+      ${getEventParam('page_location')} as page_url,
+      ${getEventParam('page_title')} as page_title,
+      COUNT(*) as views,
+      COUNT(DISTINCT user_pseudo_id) as unique_visitors,
+      AVG(${getEventParam('engagement_time_msec', 'int')}) as avg_engagement_ms
+    FROM all_events
+    WHERE event_name = 'page_view'
+    GROUP BY page_url, page_title
+    ORDER BY views DESC
+    LIMIT 50
+  `;
+
+  const [rows] = await client.query({ query });
+
+  return rows.map(row => ({
+    pageUrl: row.page_url || '(not set)',
+    pageTitle: row.page_title || '(not set)',
+    views: parseInt(row.views) || 0,
+    uniqueVisitors: parseInt(row.unique_visitors) || 0,
+    avgEngagementSec: row.avg_engagement_ms ? Math.round(row.avg_engagement_ms / 1000) : 0
+  }));
+}
+
+// Get web traffic sources
+async function getWebTrafficSources(days = 30) {
+  const client = getClient();
+
+  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+  let tableQuery;
+  if (days === 0) {
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+      WHERE stream_id = '${WEB_STREAM_ID}'
+    `;
+  } else {
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+        AND stream_id = '${WEB_STREAM_ID}'
+      UNION ALL
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+      WHERE stream_id = '${WEB_STREAM_ID}'
+    `;
+  }
+
+  const query = `
+    WITH all_events AS (
+      ${tableQuery}
+    ),
+    session_sources AS (
+      SELECT
+        user_pseudo_id,
+        ${getEventParam('ga_session_id', 'int')} as session_id,
+        COALESCE(traffic_source.source, '(direct)') as source,
+        COALESCE(traffic_source.medium, '(none)') as medium,
+        COALESCE(traffic_source.name, '(not set)') as campaign
+      FROM all_events
+      WHERE event_name = 'session_start'
+    )
+    SELECT
+      source,
+      medium,
+      COUNT(DISTINCT session_id) as sessions,
+      COUNT(DISTINCT user_pseudo_id) as users
+    FROM session_sources
+    GROUP BY source, medium
+    ORDER BY sessions DESC
+    LIMIT 20
+  `;
+
+  const [rows] = await client.query({ query });
+
+  return rows.map(row => ({
+    source: row.source || '(direct)',
+    medium: row.medium || '(none)',
+    sessions: parseInt(row.sessions) || 0,
+    users: parseInt(row.users) || 0
+  }));
+}
+
+// Get web user engagement metrics
+async function getWebEngagement(days = 30) {
+  const client = getClient();
+
+  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+  let tableQuery;
+  if (days === 0) {
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+      WHERE stream_id = '${WEB_STREAM_ID}'
+    `;
+  } else {
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+        AND stream_id = '${WEB_STREAM_ID}'
+      UNION ALL
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+      WHERE stream_id = '${WEB_STREAM_ID}'
+    `;
+  }
+
+  const query = `
+    WITH all_events AS (
+      ${tableQuery}
+    ),
+    user_events AS (
+      SELECT
+        event_name,
+        ${getEventParam('link_url')} as link_url,
+        ${getEventParam('outbound')} as outbound,
+        COUNT(*) as event_count,
+        COUNT(DISTINCT user_pseudo_id) as unique_users
+      FROM all_events
+      WHERE event_name IN ('click', 'scroll', 'file_download', 'video_start', 'video_progress', 'video_complete', 'form_start', 'form_submit')
+      GROUP BY event_name, link_url, outbound
+    )
+    SELECT * FROM user_events
+    ORDER BY event_count DESC
+    LIMIT 50
+  `;
+
+  const [rows] = await client.query({ query });
+
+  // Group by event type
+  const engagement = {
+    clicks: [],
+    scrolls: 0,
+    downloads: [],
+    videos: [],
+    forms: []
+  };
+
+  rows.forEach(row => {
+    const count = parseInt(row.event_count) || 0;
+    const users = parseInt(row.unique_users) || 0;
+
+    switch (row.event_name) {
+      case 'click':
+        if (row.link_url) {
+          engagement.clicks.push({
+            url: row.link_url,
+            outbound: row.outbound === 'true',
+            count,
+            users
+          });
+        }
+        break;
+      case 'scroll':
+        engagement.scrolls += count;
+        break;
+      case 'file_download':
+        engagement.downloads.push({ count, users });
+        break;
+      case 'video_start':
+      case 'video_progress':
+      case 'video_complete':
+        engagement.videos.push({ event: row.event_name, count, users });
+        break;
+      case 'form_start':
+      case 'form_submit':
+        engagement.forms.push({ event: row.event_name, count, users });
+        break;
+    }
+  });
+
+  return engagement;
+}
+
+// Get web events over time (for charts)
+async function getWebEventsOverTime(days = 30) {
+  const client = getClient();
+
+  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+  let tableQuery;
+  if (days === 0) {
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+      WHERE stream_id = '${WEB_STREAM_ID}'
+    `;
+  } else {
+    tableQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+        AND stream_id = '${WEB_STREAM_ID}'
+      UNION ALL
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+      WHERE stream_id = '${WEB_STREAM_ID}'
+    `;
+  }
+
+  const query = `
+    WITH all_events AS (
+      ${tableQuery}
+    )
+    SELECT
+      FORMAT_DATE('%Y-%m-%d', PARSE_DATE('%Y%m%d', event_date)) as date,
+      COUNTIF(event_name = 'page_view') as page_views,
+      COUNTIF(event_name = 'session_start') as sessions,
+      COUNT(DISTINCT user_pseudo_id) as visitors
+    FROM all_events
+    GROUP BY date
+    ORDER BY date ASC
+  `;
+
+  const [rows] = await client.query({ query });
+
+  return rows.map(row => ({
+    date: row.date,
+    pageViews: parseInt(row.page_views) || 0,
+    sessions: parseInt(row.sessions) || 0,
+    visitors: parseInt(row.visitors) || 0
+  }));
+}
+
 // Get all unique action_types in the system (for reference)
 async function getAllActionTypes(days = 30) {
   const client = getClient();
@@ -412,5 +701,11 @@ module.exports = {
   getScreenActionDetails,
   getUserEvents,
   getAllActionTypes,
-  testConnection
+  testConnection,
+  // Web analytics
+  getWebOverview,
+  getWebPages,
+  getWebTrafficSources,
+  getWebEngagement,
+  getWebEventsOverTime
 };
