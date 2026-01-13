@@ -11,6 +11,21 @@ const GA4_PROPERTY_ID = process.env.GA4_PROPERTY_ID || '474857535';
 const GCP_PROJECT_ID = process.env.GCP_PROJECT_ID || 'xracing-912fc';
 const DATASET_ID = `analytics_${GA4_PROPERTY_ID}`;
 
+// Check if a table exists in BigQuery
+async function tableExists(client, tableName) {
+  try {
+    const query = `
+      SELECT 1 FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.INFORMATION_SCHEMA.TABLES\`
+      WHERE table_name = @tableName
+      LIMIT 1
+    `;
+    const [rows] = await client.query({ query, params: { tableName } });
+    return rows.length > 0;
+  } catch (err) {
+    return false;
+  }
+}
+
 function getClient() {
   if (!bigqueryClient) {
 
@@ -365,28 +380,50 @@ const WEB_STREAM_ID = '13282628457';
 // WEB ANALYTICS FUNCTIONS
 // ============================================
 
+// Helper to build table query for web analytics, checking if intraday table exists
+async function buildWebTableQuery(client, days, streamFilter = true) {
+  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const intradayTable = `events_intraday_${todaySuffix}`;
+  const streamCondition = streamFilter ? `AND stream_id = '${WEB_STREAM_ID}'` : '';
+  const streamConditionOnly = streamFilter ? `WHERE stream_id = '${WEB_STREAM_ID}'` : '';
+
+  // Check if intraday table exists
+  const hasIntraday = await tableExists(client, intradayTable);
+
+  if (days === 0) {
+    // Today only - need intraday table
+    if (!hasIntraday) {
+      // No intraday table exists - return empty query that will return no results
+      return `SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\` WHERE FALSE`;
+    }
+    return `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
+      ${streamConditionOnly}
+    `;
+  } else {
+    // Historical data - optionally include intraday if it exists
+    const baseQuery = `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+        ${streamCondition}
+    `;
+
+    if (hasIntraday) {
+      return `
+        ${baseQuery}
+        UNION ALL
+        SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
+        ${streamConditionOnly}
+      `;
+    }
+    return baseQuery;
+  }
+}
+
 // Get web analytics overview (page views, sessions, users)
 async function getWebOverview(days = 30) {
   const client = getClient();
-
-  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-
-  let tableQuery;
-  if (days === 0) {
-    tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
-      WHERE stream_id = '${WEB_STREAM_ID}'
-    `;
-  } else {
-    tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
-      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
-        AND stream_id = '${WEB_STREAM_ID}'
-      UNION ALL
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
-      WHERE stream_id = '${WEB_STREAM_ID}'
-    `;
-  }
+  const tableQuery = await buildWebTableQuery(client, days);
 
   const query = `
     WITH all_events AS (
@@ -409,25 +446,7 @@ async function getWebOverview(days = 30) {
 // Get web page views breakdown
 async function getWebPages(days = 30) {
   const client = getClient();
-
-  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-
-  let tableQuery;
-  if (days === 0) {
-    tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
-      WHERE stream_id = '${WEB_STREAM_ID}'
-    `;
-  } else {
-    tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
-      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
-        AND stream_id = '${WEB_STREAM_ID}'
-      UNION ALL
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
-      WHERE stream_id = '${WEB_STREAM_ID}'
-    `;
-  }
+  const tableQuery = await buildWebTableQuery(client, days);
 
   const query = `
     WITH all_events AS (
@@ -460,25 +479,7 @@ async function getWebPages(days = 30) {
 // Get web traffic sources
 async function getWebTrafficSources(days = 30) {
   const client = getClient();
-
-  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-
-  let tableQuery;
-  if (days === 0) {
-    tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
-      WHERE stream_id = '${WEB_STREAM_ID}'
-    `;
-  } else {
-    tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
-      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
-        AND stream_id = '${WEB_STREAM_ID}'
-      UNION ALL
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
-      WHERE stream_id = '${WEB_STREAM_ID}'
-    `;
-  }
+  const tableQuery = await buildWebTableQuery(client, days);
 
   const query = `
     WITH all_events AS (
@@ -518,25 +519,7 @@ async function getWebTrafficSources(days = 30) {
 // Get web user engagement metrics
 async function getWebEngagement(days = 30) {
   const client = getClient();
-
-  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-
-  let tableQuery;
-  if (days === 0) {
-    tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
-      WHERE stream_id = '${WEB_STREAM_ID}'
-    `;
-  } else {
-    tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
-      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
-        AND stream_id = '${WEB_STREAM_ID}'
-      UNION ALL
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
-      WHERE stream_id = '${WEB_STREAM_ID}'
-    `;
-  }
+  const tableQuery = await buildWebTableQuery(client, days);
 
   const query = `
     WITH all_events AS (
@@ -608,25 +591,7 @@ async function getWebEngagement(days = 30) {
 // Get web events over time (for charts)
 async function getWebEventsOverTime(days = 30) {
   const client = getClient();
-
-  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-
-  let tableQuery;
-  if (days === 0) {
-    tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
-      WHERE stream_id = '${WEB_STREAM_ID}'
-    `;
-  } else {
-    tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
-      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
-        AND stream_id = '${WEB_STREAM_ID}'
-      UNION ALL
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
-      WHERE stream_id = '${WEB_STREAM_ID}'
-    `;
-  }
+  const tableQuery = await buildWebTableQuery(client, days);
 
   const query = `
     WITH all_events AS (
