@@ -81,21 +81,37 @@ async function getScreenActions(days = 30, userId = null, excludeOwners = false)
   // For today (days=0), use intraday table; otherwise use regular events tables
   // For days >= 1, we combine both regular and intraday tables to get complete data
   const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const intradayTable = `events_intraday_${todaySuffix}`;
+
+  // Check if intraday table exists
+  const hasIntraday = await tableExists(client, intradayTable);
 
   let tableQuery;
   if (days === 0) {
-    // Today only - just intraday
+    // Today only - need intraday table
+    if (!hasIntraday) {
+      // No intraday table exists - return empty results
+      return {};
+    }
     tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
     `;
   } else {
-    // Historical + intraday for complete data
-    tableQuery = `
+    // Historical data - optionally include intraday if it exists
+    const baseQuery = `
       SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
       WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
-      UNION ALL
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
     `;
+
+    if (hasIntraday) {
+      tableQuery = `
+        ${baseQuery}
+        UNION ALL
+        SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
+      `;
+    } else {
+      tableQuery = baseQuery;
+    }
   }
 
   const query = `
@@ -199,19 +215,44 @@ async function getScreenActionDetails(screenName, days = 30, userId = null, excl
 
   // For today (days=0), use intraday table; otherwise combine regular + intraday
   const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const intradayTable = `events_intraday_${todaySuffix}`;
+
+  // Check if intraday table exists
+  const hasIntraday = await tableExists(client, intradayTable);
 
   let tableQuery;
   if (days === 0) {
+    // Today only - need intraday table
+    if (!hasIntraday) {
+      // No intraday table exists - return empty results
+      return {
+        screenName,
+        totalEvents: 0,
+        totalUsers: 0,
+        screenViews: 0,
+        screenViewUsers: 0,
+        actions: []
+      };
+    }
     tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
     `;
   } else {
-    tableQuery = `
+    // Historical data - optionally include intraday if it exists
+    const baseQuery = `
       SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
       WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
-      UNION ALL
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_intraday_${todaySuffix}\`
     `;
+
+    if (hasIntraday) {
+      tableQuery = `
+        ${baseQuery}
+        UNION ALL
+        SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
+      `;
+    } else {
+      tableQuery = baseQuery;
+    }
   }
 
   const query = `
