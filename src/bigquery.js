@@ -91,7 +91,7 @@ async function getScreenActions(days = 30, userId = null, excludeOwners = false)
     // Today only - need intraday table
     if (!hasIntraday) {
       // No intraday table exists - return empty results
-      return {};
+      return [];
     }
     tableQuery = `
       SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
