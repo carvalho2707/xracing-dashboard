@@ -652,6 +652,54 @@ app.get('/api/web/events-over-time', async (req, res) => {
   }
 });
 
+// Get web visitors by country
+app.get('/api/web/countries', async (req, res) => {
+  try {
+    const days = req.query.days !== undefined ? parseInt(req.query.days) : 30;
+    const data = await bigquery.getWebCountries(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching web countries:', error);
+    res.status(500).json({ error: 'Failed to fetch web countries' });
+  }
+});
+
+// Get web visitors by city
+app.get('/api/web/cities', async (req, res) => {
+  try {
+    const days = req.query.days !== undefined ? parseInt(req.query.days) : 30;
+    const data = await bigquery.getWebCities(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching web cities:', error);
+    res.status(500).json({ error: 'Failed to fetch web cities' });
+  }
+});
+
+// Get web device/browser/OS breakdown
+app.get('/api/web/devices', async (req, res) => {
+  try {
+    const days = req.query.days !== undefined ? parseInt(req.query.days) : 30;
+    const data = await bigquery.getWebDevices(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching web devices:', error);
+    res.status(500).json({ error: 'Failed to fetch web devices' });
+  }
+});
+
+// Get app store download button clicks
+app.get('/api/web/download-clicks', async (req, res) => {
+  try {
+    const days = req.query.days !== undefined ? parseInt(req.query.days) : 30;
+    const data = await bigquery.getWebDownloadClicks(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching download clicks:', error);
+    res.status(500).json({ error: 'Failed to fetch download clicks' });
+  }
+});
+
 // ============================================
 // Product Analytics API Routes (Tier 1/2/3)
 // ============================================

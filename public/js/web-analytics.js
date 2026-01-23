@@ -45,6 +45,47 @@ function formatSourceMedium(source, medium) {
   return `${source} / ${medium}`;
 }
 
+// Load download clicks (most important metric)
+async function loadDownloadClicks() {
+  const data = await fetchData(`web/download-clicks?days=${daysFilter}`);
+
+  if (!data) {
+    document.getElementById('downloadClicks').textContent = '0';
+    document.getElementById('downloadCTR').textContent = '0%';
+    document.getElementById('iosClicks').textContent = '0';
+    document.getElementById('androidClicks').textContent = '0';
+    return;
+  }
+
+  document.getElementById('downloadClicks').textContent = formatNumber(data.totalClicks || 0);
+  document.getElementById('downloadCTR').textContent = `${data.ctr || 0}%`;
+
+  const iosData = data.platforms?.find(p => p.platform === 'ios');
+  const androidData = data.platforms?.find(p => p.platform === 'android');
+
+  document.getElementById('iosClicks').textContent = formatNumber(iosData?.clicks || 0);
+  document.getElementById('androidClicks').textContent = formatNumber(androidData?.clicks || 0);
+
+  // Show countries if we have data
+  const countryContainer = document.getElementById('downloadsByCountry');
+  const countryList = document.getElementById('downloadCountryList');
+
+  if (data.byCountry && data.byCountry.length > 0) {
+    countryContainer.classList.remove('hidden');
+    countryList.innerHTML = data.byCountry.slice(0, 10).map(c => {
+      const flag = getCountryFlag(c.country);
+      return `
+        <div class="bg-racing-dark/50 rounded-lg p-2 flex items-center justify-between">
+          <span class="text-sm">${flag} ${c.country}</span>
+          <span class="text-sm font-bold text-white">${c.clicks}</span>
+        </div>
+      `;
+    }).join('');
+  } else {
+    countryContainer.classList.add('hidden');
+  }
+}
+
 // Load overview stats
 async function loadOverview() {
   const data = await fetchData(`web/overview?days=${daysFilter}`);
@@ -184,6 +225,229 @@ async function loadEngagement() {
   `;
 }
 
+// Get country flag emoji from country name
+function getCountryFlag(country) {
+  const flags = {
+    'United States': '🇺🇸',
+    'United Kingdom': '🇬🇧',
+    'Canada': '🇨🇦',
+    'Australia': '🇦🇺',
+    'Germany': '🇩🇪',
+    'France': '🇫🇷',
+    'Spain': '🇪🇸',
+    'Italy': '🇮🇹',
+    'Netherlands': '🇳🇱',
+    'Belgium': '🇧🇪',
+    'Switzerland': '🇨🇭',
+    'Austria': '🇦🇹',
+    'Portugal': '🇵🇹',
+    'Brazil': '🇧🇷',
+    'Mexico': '🇲🇽',
+    'Japan': '🇯🇵',
+    'South Korea': '🇰🇷',
+    'China': '🇨🇳',
+    'India': '🇮🇳',
+    'Singapore': '🇸🇬',
+    'New Zealand': '🇳🇿',
+    'Ireland': '🇮🇪',
+    'Sweden': '🇸🇪',
+    'Norway': '🇳🇴',
+    'Denmark': '🇩🇰',
+    'Finland': '🇫🇮',
+    'Poland': '🇵🇱',
+    'Czech Republic': '🇨🇿',
+    'Czechia': '🇨🇿',
+    'Hungary': '🇭🇺',
+    'Russia': '🇷🇺',
+    'South Africa': '🇿🇦',
+    'Argentina': '🇦🇷',
+    'Chile': '🇨🇱',
+    'Colombia': '🇨🇴',
+    'Thailand': '🇹🇭',
+    'Malaysia': '🇲🇾',
+    'Indonesia': '🇮🇩',
+    'Philippines': '🇵🇭',
+    'Vietnam': '🇻🇳',
+    'Turkey': '🇹🇷',
+    'Israel': '🇮🇱',
+    'United Arab Emirates': '🇦🇪',
+    'Saudi Arabia': '🇸🇦',
+    'Egypt': '🇪🇬',
+    'Greece': '🇬🇷',
+    'Romania': '🇷🇴',
+    'Ukraine': '🇺🇦'
+  };
+  return flags[country] || '🌍';
+}
+
+// Load countries data
+async function loadCountries() {
+  const data = await fetchData(`web/countries?days=${daysFilter}`);
+  const container = document.getElementById('countries');
+
+  if (!data || data.length === 0) {
+    container.innerHTML = `<div class="text-sm text-racing-muted py-4">No country data available</div>`;
+    return;
+  }
+
+  const maxVisitors = Math.max(...data.map(c => c.visitors));
+
+  container.innerHTML = data.slice(0, 10).map(country => {
+    const percentage = (country.visitors / maxVisitors * 100).toFixed(0);
+    const flag = getCountryFlag(country.country);
+
+    return `
+      <div class="bg-racing-dark/50 rounded-lg p-2.5">
+        <div class="flex items-center justify-between mb-1.5">
+          <div class="flex items-center gap-2">
+            <span class="text-base">${flag}</span>
+            <span class="text-sm text-white">${country.country}</span>
+          </div>
+          <div class="text-right">
+            <span class="text-sm font-bold text-white">${formatNumber(country.visitors)}</span>
+            <span class="text-xs text-racing-muted ml-1">visitors</span>
+          </div>
+        </div>
+        <div class="source-bar">
+          <div class="source-bar-fill bg-blue-500" style="width: ${percentage}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Load cities data
+async function loadCities() {
+  const data = await fetchData(`web/cities?days=${daysFilter}`);
+  const container = document.getElementById('cities');
+
+  if (!data || data.length === 0) {
+    container.innerHTML = `<div class="text-sm text-racing-muted py-4">No city data available</div>`;
+    return;
+  }
+
+  const maxVisitors = Math.max(...data.map(c => c.visitors));
+
+  container.innerHTML = data.slice(0, 10).map(city => {
+    const percentage = (city.visitors / maxVisitors * 100).toFixed(0);
+    const flag = getCountryFlag(city.country);
+    const location = city.region ? `${city.city}, ${city.region}` : city.city;
+
+    return `
+      <div class="bg-racing-dark/50 rounded-lg p-2.5">
+        <div class="flex items-center justify-between mb-1.5">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+            <span class="text-base flex-shrink-0">${flag}</span>
+            <span class="text-sm text-white truncate" title="${location}, ${city.country}">${location}</span>
+          </div>
+          <div class="text-right flex-shrink-0 ml-2">
+            <span class="text-sm font-bold text-white">${formatNumber(city.visitors)}</span>
+          </div>
+        </div>
+        <div class="source-bar">
+          <div class="source-bar-fill bg-green-500" style="width: ${percentage}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Load devices data
+async function loadDevices() {
+  const data = await fetchData(`web/devices?days=${daysFilter}`);
+
+  if (!data) {
+    document.getElementById('deviceCategories').innerHTML = `<div class="text-sm text-racing-muted py-4">No data</div>`;
+    document.getElementById('browsers').innerHTML = `<div class="text-sm text-racing-muted py-4">No data</div>`;
+    document.getElementById('operatingSystems').innerHTML = `<div class="text-sm text-racing-muted py-4">No data</div>`;
+    document.getElementById('languages').innerHTML = `<div class="text-sm text-racing-muted py-4">No data</div>`;
+    return;
+  }
+
+  // Device categories
+  const categoryContainer = document.getElementById('deviceCategories');
+  if (data.categories && data.categories.length > 0) {
+    const maxCat = Math.max(...data.categories.map(c => c.visitors));
+    categoryContainer.innerHTML = data.categories.map(cat => {
+      const pct = (cat.visitors / maxCat * 100).toFixed(0);
+      const icon = cat.category === 'desktop' ? '💻' : cat.category === 'mobile' ? '📱' : cat.category === 'tablet' ? '📱' : '🖥️';
+      return `
+        <div class="flex items-center justify-between text-sm py-1">
+          <span class="text-racing-text">${icon} ${cat.category}</span>
+          <span class="text-white font-medium">${formatNumber(cat.visitors)}</span>
+        </div>
+        <div class="source-bar mb-1">
+          <div class="source-bar-fill bg-purple-500" style="width: ${pct}%"></div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    categoryContainer.innerHTML = `<div class="text-sm text-racing-muted py-2">No data</div>`;
+  }
+
+  // Browsers
+  const browserContainer = document.getElementById('browsers');
+  if (data.browsers && data.browsers.length > 0) {
+    const maxBrowser = Math.max(...data.browsers.map(b => b.visitors));
+    browserContainer.innerHTML = data.browsers.slice(0, 5).map(browser => {
+      const pct = (browser.visitors / maxBrowser * 100).toFixed(0);
+      return `
+        <div class="flex items-center justify-between text-sm py-1">
+          <span class="text-racing-text truncate mr-2">${browser.browser}</span>
+          <span class="text-white font-medium">${formatNumber(browser.visitors)}</span>
+        </div>
+        <div class="source-bar mb-1">
+          <div class="source-bar-fill bg-orange-500" style="width: ${pct}%"></div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    browserContainer.innerHTML = `<div class="text-sm text-racing-muted py-2">No data</div>`;
+  }
+
+  // Operating Systems
+  const osContainer = document.getElementById('operatingSystems');
+  if (data.operatingSystems && data.operatingSystems.length > 0) {
+    const maxOS = Math.max(...data.operatingSystems.map(o => o.visitors));
+    osContainer.innerHTML = data.operatingSystems.slice(0, 5).map(os => {
+      const pct = (os.visitors / maxOS * 100).toFixed(0);
+      return `
+        <div class="flex items-center justify-between text-sm py-1">
+          <span class="text-racing-text truncate mr-2">${os.os}</span>
+          <span class="text-white font-medium">${formatNumber(os.visitors)}</span>
+        </div>
+        <div class="source-bar mb-1">
+          <div class="source-bar-fill bg-cyan-500" style="width: ${pct}%"></div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    osContainer.innerHTML = `<div class="text-sm text-racing-muted py-2">No data</div>`;
+  }
+
+  // Languages
+  const langContainer = document.getElementById('languages');
+  if (data.languages && data.languages.length > 0) {
+    const maxLang = Math.max(...data.languages.map(l => l.visitors));
+    langContainer.innerHTML = data.languages.slice(0, 5).map(lang => {
+      const pct = (lang.visitors / maxLang * 100).toFixed(0);
+      // Format language code to be more readable
+      const langName = lang.language.split('-')[0].toUpperCase();
+      return `
+        <div class="flex items-center justify-between text-sm py-1">
+          <span class="text-racing-text">${langName}</span>
+          <span class="text-white font-medium">${formatNumber(lang.visitors)}</span>
+        </div>
+        <div class="source-bar mb-1">
+          <div class="source-bar-fill bg-pink-500" style="width: ${pct}%"></div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    langContainer.innerHTML = `<div class="text-sm text-racing-muted py-2">No data</div>`;
+  }
+}
+
 // Load and render traffic chart
 async function loadTrafficChart() {
   const data = await fetchData(`web/events-over-time?days=${daysFilter}`);
@@ -276,11 +540,15 @@ async function refreshData() {
   document.getElementById('dashboard').classList.add('hidden');
 
   await Promise.all([
+    loadDownloadClicks(),
     loadOverview(),
     loadPages(),
     loadTrafficSources(),
     loadEngagement(),
-    loadTrafficChart()
+    loadTrafficChart(),
+    loadCountries(),
+    loadCities(),
+    loadDevices()
   ]);
 
   document.getElementById('loading').classList.add('hidden');

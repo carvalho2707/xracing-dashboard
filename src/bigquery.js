@@ -702,6 +702,265 @@ async function testConnection() {
   }
 }
 
+// Get app store download button clicks
+async function getWebDownloadClicks(days = 30) {
+  const client = getClient();
+  const tableQuery = await buildWebTableQuery(client, days);
+
+  // Query for clicks on app store links
+  const query = `
+    WITH all_events AS (
+      ${tableQuery}
+    ),
+    store_clicks AS (
+      SELECT
+        ${getEventParam('link_url')} as link_url,
+        ${getEventParam('outbound')} as outbound,
+        user_pseudo_id,
+        geo.country as country
+      FROM all_events
+      WHERE event_name = 'click'
+        AND (
+          ${getEventParam('link_url')} LIKE '%apps.apple.com%'
+          OR ${getEventParam('link_url')} LIKE '%play.google.com%'
+          OR ${getEventParam('link_url')} LIKE '%itunes.apple.com%'
+          OR ${getEventParam('link_url')} LIKE '%apple.com/app-store%'
+        )
+    )
+    SELECT
+      CASE
+        WHEN link_url LIKE '%play.google.com%' THEN 'android'
+        ELSE 'ios'
+      END as platform,
+      COUNT(*) as clicks,
+      COUNT(DISTINCT user_pseudo_id) as unique_clickers
+    FROM store_clicks
+    GROUP BY platform
+    ORDER BY clicks DESC
+  `;
+
+  // Query for clicks by country
+  const countryQuery = `
+    WITH all_events AS (
+      ${tableQuery}
+    ),
+    store_clicks AS (
+      SELECT
+        ${getEventParam('link_url')} as link_url,
+        user_pseudo_id,
+        geo.country as country
+      FROM all_events
+      WHERE event_name = 'click'
+        AND (
+          ${getEventParam('link_url')} LIKE '%apps.apple.com%'
+          OR ${getEventParam('link_url')} LIKE '%play.google.com%'
+          OR ${getEventParam('link_url')} LIKE '%itunes.apple.com%'
+          OR ${getEventParam('link_url')} LIKE '%apple.com/app-store%'
+        )
+    )
+    SELECT
+      country,
+      COUNT(*) as clicks,
+      COUNT(DISTINCT user_pseudo_id) as unique_clickers
+    FROM store_clicks
+    WHERE country IS NOT NULL AND country != ''
+    GROUP BY country
+    ORDER BY clicks DESC
+    LIMIT 10
+  `;
+
+  // Query for total visitors (for CTR calculation)
+  const visitorsQuery = `
+    WITH all_events AS (
+      ${tableQuery}
+    )
+    SELECT COUNT(DISTINCT user_pseudo_id) as total_visitors
+    FROM all_events
+  `;
+
+  const [platformRows] = await client.query({ query });
+  const [countryRows] = await client.query({ query: countryQuery });
+  const [visitorRows] = await client.query({ query: visitorsQuery });
+
+  const totalVisitors = parseInt(visitorRows[0]?.total_visitors) || 0;
+
+  const platforms = platformRows.map(row => ({
+    platform: row.platform,
+    clicks: parseInt(row.clicks) || 0,
+    uniqueClickers: parseInt(row.unique_clickers) || 0
+  }));
+
+  const totalClicks = platforms.reduce((sum, p) => sum + p.clicks, 0);
+  const totalUniqueClickers = platforms.reduce((sum, p) => sum + p.uniqueClickers, 0);
+  const ctr = totalVisitors > 0 ? ((totalUniqueClickers / totalVisitors) * 100).toFixed(2) : 0;
+
+  return {
+    totalClicks,
+    totalUniqueClickers,
+    totalVisitors,
+    ctr,
+    platforms,
+    byCountry: countryRows.map(row => ({
+      country: row.country || '(not set)',
+      clicks: parseInt(row.clicks) || 0,
+      uniqueClickers: parseInt(row.unique_clickers) || 0
+    }))
+  };
+}
+
+// Get web visitors by country
+async function getWebCountries(days = 30) {
+  const client = getClient();
+  const tableQuery = await buildWebTableQuery(client, days);
+
+  const query = `
+    WITH all_events AS (
+      ${tableQuery}
+    )
+    SELECT
+      geo.country as country,
+      COUNT(DISTINCT user_pseudo_id) as visitors,
+      COUNTIF(event_name = 'session_start') as sessions,
+      COUNTIF(event_name = 'page_view') as page_views
+    FROM all_events
+    WHERE geo.country IS NOT NULL AND geo.country != ''
+    GROUP BY country
+    ORDER BY visitors DESC
+    LIMIT 30
+  `;
+
+  const [rows] = await client.query({ query });
+
+  return rows.map(row => ({
+    country: row.country || '(not set)',
+    visitors: parseInt(row.visitors) || 0,
+    sessions: parseInt(row.sessions) || 0,
+    pageViews: parseInt(row.page_views) || 0
+  }));
+}
+
+// Get web visitors by city (with country)
+async function getWebCities(days = 30) {
+  const client = getClient();
+  const tableQuery = await buildWebTableQuery(client, days);
+
+  const query = `
+    WITH all_events AS (
+      ${tableQuery}
+    )
+    SELECT
+      geo.country as country,
+      geo.city as city,
+      geo.region as region,
+      COUNT(DISTINCT user_pseudo_id) as visitors,
+      COUNTIF(event_name = 'session_start') as sessions
+    FROM all_events
+    WHERE geo.city IS NOT NULL AND geo.city != '' AND geo.city != '(not set)'
+    GROUP BY country, city, region
+    ORDER BY visitors DESC
+    LIMIT 50
+  `;
+
+  const [rows] = await client.query({ query });
+
+  return rows.map(row => ({
+    country: row.country || '(not set)',
+    city: row.city || '(not set)',
+    region: row.region || '',
+    visitors: parseInt(row.visitors) || 0,
+    sessions: parseInt(row.sessions) || 0
+  }));
+}
+
+// Get web visitors by device/browser/OS
+async function getWebDevices(days = 30) {
+  const client = getClient();
+  const tableQuery = await buildWebTableQuery(client, days);
+
+  // Query for device categories
+  const categoryQuery = `
+    WITH all_events AS (
+      ${tableQuery}
+    )
+    SELECT
+      device.category as category,
+      COUNT(DISTINCT user_pseudo_id) as visitors
+    FROM all_events
+    WHERE device.category IS NOT NULL
+    GROUP BY category
+    ORDER BY visitors DESC
+  `;
+
+  // Query for browsers
+  const browserQuery = `
+    WITH all_events AS (
+      ${tableQuery}
+    )
+    SELECT
+      device.web_info.browser as browser,
+      COUNT(DISTINCT user_pseudo_id) as visitors
+    FROM all_events
+    WHERE device.web_info.browser IS NOT NULL AND device.web_info.browser != ''
+    GROUP BY browser
+    ORDER BY visitors DESC
+    LIMIT 10
+  `;
+
+  // Query for operating systems
+  const osQuery = `
+    WITH all_events AS (
+      ${tableQuery}
+    )
+    SELECT
+      device.operating_system as os,
+      COUNT(DISTINCT user_pseudo_id) as visitors
+    FROM all_events
+    WHERE device.operating_system IS NOT NULL AND device.operating_system != ''
+    GROUP BY os
+    ORDER BY visitors DESC
+    LIMIT 10
+  `;
+
+  // Query for languages
+  const langQuery = `
+    WITH all_events AS (
+      ${tableQuery}
+    )
+    SELECT
+      device.language as language,
+      COUNT(DISTINCT user_pseudo_id) as visitors
+    FROM all_events
+    WHERE device.language IS NOT NULL AND device.language != ''
+    GROUP BY language
+    ORDER BY visitors DESC
+    LIMIT 10
+  `;
+
+  const [categoryRows] = await client.query({ query: categoryQuery });
+  const [browserRows] = await client.query({ query: browserQuery });
+  const [osRows] = await client.query({ query: osQuery });
+  const [langRows] = await client.query({ query: langQuery });
+
+  return {
+    categories: categoryRows.map(row => ({
+      category: row.category || '(not set)',
+      visitors: parseInt(row.visitors) || 0
+    })),
+    browsers: browserRows.map(row => ({
+      browser: row.browser || '(not set)',
+      visitors: parseInt(row.visitors) || 0
+    })),
+    operatingSystems: osRows.map(row => ({
+      os: row.os || '(not set)',
+      visitors: parseInt(row.visitors) || 0
+    })),
+    languages: langRows.map(row => ({
+      language: row.language || '(not set)',
+      visitors: parseInt(row.visitors) || 0
+    }))
+  };
+}
+
 module.exports = {
   getScreenActions,
   getScreenActionDetails,
@@ -713,5 +972,9 @@ module.exports = {
   getWebPages,
   getWebTrafficSources,
   getWebEngagement,
-  getWebEventsOverTime
+  getWebEventsOverTime,
+  getWebCountries,
+  getWebCities,
+  getWebDevices,
+  getWebDownloadClicks
 };

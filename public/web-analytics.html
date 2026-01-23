@@ -173,6 +173,48 @@
           </div>
         </div>
 
+        <!-- Download Conversions (Most Important) -->
+        <div class="glass-card rounded-xl p-6 mb-6 border-2 border-racing-red/30">
+          <div class="flex items-center gap-2 mb-4">
+            <svg class="w-5 h-5 text-racing-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            <h2 class="text-lg font-semibold text-white">App Store Conversions</h2>
+            <span class="px-2 py-0.5 text-xs bg-racing-red/20 text-racing-red rounded">Key Metric</span>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div class="stat-card rounded-xl p-4 text-center">
+              <p class="text-racing-muted text-xs mb-1">Total Clicks</p>
+              <p id="downloadClicks" class="text-3xl font-bold text-racing-red">-</p>
+            </div>
+            <div class="stat-card rounded-xl p-4 text-center">
+              <p class="text-racing-muted text-xs mb-1">Click-through Rate</p>
+              <p id="downloadCTR" class="text-3xl font-bold text-green-400">-</p>
+            </div>
+            <div class="stat-card rounded-xl p-4 text-center">
+              <p class="text-racing-muted text-xs mb-1 flex items-center justify-center gap-1">
+                <span class="text-base"></span> iOS Clicks
+              </p>
+              <p id="iosClicks" class="text-3xl font-bold text-blue-400">-</p>
+            </div>
+            <div class="stat-card rounded-xl p-4 text-center">
+              <p class="text-racing-muted text-xs mb-1 flex items-center justify-center gap-1">
+                <span class="text-base">🤖</span> Android Clicks
+              </p>
+              <p id="androidClicks" class="text-3xl font-bold text-green-500">-</p>
+            </div>
+          </div>
+
+          <!-- Clicks by Country -->
+          <div id="downloadsByCountry" class="hidden">
+            <h3 class="text-sm font-medium text-racing-muted mb-2">Download Interest by Country</h3>
+            <div id="downloadCountryList" class="grid grid-cols-2 md:grid-cols-5 gap-2">
+              <!-- Countries will be inserted here -->
+            </div>
+          </div>
+        </div>
+
         <!-- Overview Stats -->
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
           <div class="stat-card rounded-xl p-4 text-center">
@@ -229,10 +271,104 @@
         </div>
 
         <!-- Engagement Section -->
-        <div class="glass-card rounded-xl p-6">
+        <div class="glass-card rounded-xl p-6 mb-6">
           <h2 class="text-lg font-semibold text-white mb-4">User Engagement</h2>
           <div id="engagement" class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <!-- Engagement metrics will be inserted here -->
+          </div>
+        </div>
+
+        <!-- Visitor Demographics Section -->
+        <div class="glass-card rounded-xl p-6 mb-6">
+          <h2 class="text-lg font-semibold text-white mb-4">Visitor Demographics</h2>
+
+          <!-- Country & City Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Countries -->
+            <div>
+              <h3 class="text-sm font-medium text-racing-muted mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Top Countries
+              </h3>
+              <div id="countries" class="space-y-2">
+                <!-- Countries will be inserted here -->
+              </div>
+            </div>
+
+            <!-- Cities -->
+            <div>
+              <h3 class="text-sm font-medium text-racing-muted mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                Top Cities
+              </h3>
+              <div id="cities" class="space-y-2">
+                <!-- Cities will be inserted here -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Device & Tech Section -->
+        <div class="glass-card rounded-xl p-6">
+          <h2 class="text-lg font-semibold text-white mb-4">Technology & Devices</h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Device Categories -->
+            <div>
+              <h3 class="text-sm font-medium text-racing-muted mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                Device Type
+              </h3>
+              <div id="deviceCategories" class="space-y-2">
+                <!-- Device categories will be inserted here -->
+              </div>
+            </div>
+
+            <!-- Browsers -->
+            <div>
+              <h3 class="text-sm font-medium text-racing-muted mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                </svg>
+                Browser
+              </h3>
+              <div id="browsers" class="space-y-2">
+                <!-- Browsers will be inserted here -->
+              </div>
+            </div>
+
+            <!-- Operating Systems -->
+            <div>
+              <h3 class="text-sm font-medium text-racing-muted mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                </svg>
+                Operating System
+              </h3>
+              <div id="operatingSystems" class="space-y-2">
+                <!-- OS will be inserted here -->
+              </div>
+            </div>
+
+            <!-- Languages -->
+            <div>
+              <h3 class="text-sm font-medium text-racing-muted mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/>
+                </svg>
+                Language
+              </h3>
+              <div id="languages" class="space-y-2">
+                <!-- Languages will be inserted here -->
+              </div>
+            </div>
           </div>
         </div>
       </div>
