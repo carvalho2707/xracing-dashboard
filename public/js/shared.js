@@ -67,7 +67,7 @@ function formatDateTime(dateStr) {
 
 // Format growth percentage with color class
 function formatGrowth(percent) {
-  if (percent === null || percent === undefined) return { text: 'N/A', class: 'text-racing-muted' };
+  if (percent === null || percent === undefined) return { text: '-', class: 'text-racing-muted' };
   const value = parseFloat(percent);
   if (value > 0) return { text: `+${value}%`, class: 'text-green-400' };
   if (value < 0) return { text: `${value}%`, class: 'text-red-400' };
