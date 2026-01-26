@@ -219,24 +219,24 @@ function renderTimeline(data) {
         if (excludeParams.includes(key) || !value) return;
         const color = paramColors[key] || 'text-racing-muted';
         const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        contextParts.push(`<span class="${color}">${displayKey}:</span> <span class="font-mono">${value}</span>`);
+        contextParts.push(`<span class="inline-flex flex-wrap items-baseline gap-1"><span class="${color}">${displayKey}:</span> <span class="font-mono break-all">${value}</span></span>`);
       });
 
       const contextHtml = contextParts.length > 0
-        ? `<div class="text-xs text-racing-muted mt-1 flex flex-wrap gap-x-3 gap-y-1">${contextParts.join('')}</div>`
+        ? `<div class="text-xs text-racing-muted mt-1 flex flex-wrap gap-x-3 gap-y-1 overflow-hidden break-words">${contextParts.join('')}</div>`
         : '';
 
       return `
         <div class="py-2 border-b border-racing-border/30 last:border-0">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3 flex-wrap">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               ${timeOrCount}
-              <span class="px-2 py-1 text-xs font-medium rounded ${colorClass}">
+              <span class="px-2 py-1 text-xs font-medium rounded ${colorClass} whitespace-nowrap">
                 ${displayLabel}
               </span>
               ${eventBadge}
-              <span class="text-sm text-racing-muted">${event.screenName}</span>
             </div>
+            <span class="text-sm text-racing-muted truncate">${event.screenName}</span>
           </div>
           ${contextHtml}
         </div>
@@ -245,11 +245,11 @@ function renderTimeline(data) {
 
     return `
       <div class="timeline-date">
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="text-white font-medium">${formatGA4Date(day.date)}</h4>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 mb-3">
+          <h4 class="text-white font-medium text-sm sm:text-base">${formatGA4Date(day.date)}</h4>
           <span class="text-sm text-racing-muted">${day.totalEvents} events</span>
         </div>
-        <div class="bg-racing-dark/50 rounded-lg p-4">
+        <div class="bg-racing-dark/50 rounded-lg p-3 sm:p-4 overflow-hidden">
           ${eventsHtml}
         </div>
       </div>
