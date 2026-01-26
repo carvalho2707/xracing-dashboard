@@ -79,6 +79,17 @@
         left: -16px;
       }
     }
+    /* Fix date inputs on mobile */
+    input[type="date"] {
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    @media (max-width: 639px) {
+      input[type="date"]::-webkit-calendar-picker-indicator {
+        padding: 0;
+        margin: 0;
+      }
+    }
   </style>
 </head>
 <body class="font-sans text-racing-text">
@@ -164,26 +175,28 @@
 
     <main class="page-content">
       <!-- Search Form -->
-      <div class="glass-card rounded-xl p-4 sm:p-6 mb-6 overflow-hidden">
+      <div class="glass-card rounded-xl p-4 sm:p-6 mb-6 overflow-hidden max-w-full">
         <h2 class="text-lg font-semibold text-white mb-4">Search User Activity</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
           <div class="min-w-0">
             <label class="block text-sm text-racing-muted mb-2">Username</label>
             <div class="relative">
               <input type="text" id="usernameInput" placeholder="Search for user..."
-                class="w-full min-w-0 px-3 sm:px-4 py-2 bg-racing-dark border border-racing-border rounded-lg text-white placeholder-racing-muted focus:outline-none focus:border-racing-red"
+                class="w-full min-w-0 px-3 py-2 bg-racing-dark border border-racing-border rounded-lg text-white placeholder-racing-muted focus:outline-none focus:border-racing-red"
                 autocomplete="off">
             </div>
           </div>
-          <div class="min-w-0">
-            <label class="block text-sm text-racing-muted mb-2">Start Date</label>
-            <input type="date" id="startDate"
-              class="w-full min-w-0 px-2 sm:px-4 py-2 bg-racing-dark border border-racing-border rounded-lg text-white focus:outline-none focus:border-racing-red text-sm sm:text-base">
-          </div>
-          <div class="min-w-0">
-            <label class="block text-sm text-racing-muted mb-2">End Date</label>
-            <input type="date" id="endDate"
-              class="w-full min-w-0 px-2 sm:px-4 py-2 bg-racing-dark border border-racing-border rounded-lg text-white focus:outline-none focus:border-racing-red text-sm sm:text-base">
+          <div class="grid grid-cols-2 gap-3 sm:contents">
+            <div class="min-w-0">
+              <label class="block text-sm text-racing-muted mb-2">Start Date</label>
+              <input type="date" id="startDate"
+                class="w-full min-w-0 px-2 py-2 bg-racing-dark border border-racing-border rounded-lg text-white focus:outline-none focus:border-racing-red text-sm">
+            </div>
+            <div class="min-w-0">
+              <label class="block text-sm text-racing-muted mb-2">End Date</label>
+              <input type="date" id="endDate"
+                class="w-full min-w-0 px-2 py-2 bg-racing-dark border border-racing-border rounded-lg text-white focus:outline-none focus:border-racing-red text-sm">
+            </div>
           </div>
           <div class="flex items-end sm:col-span-2 lg:col-span-1">
             <button onclick="searchUser()" id="searchBtn"

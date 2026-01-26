@@ -2,6 +2,8 @@
 html, body {
   background: #010409;
   overscroll-behavior: none;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 html {
@@ -81,6 +83,7 @@ html {
   margin-left: 240px;
   min-height: 100vh;
   transition: margin-left 0.3s ease;
+  overflow-x: hidden;
 }
 
 /* Mobile sidebar toggle */
@@ -165,7 +168,14 @@ html {
 .page-content {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 1rem;
+  overflow-x: hidden;
+}
+
+@media (min-width: 640px) {
+  .page-content {
+    padding: 1.5rem;
+  }
 }
 
 /* Sparkline mini charts */
