@@ -431,7 +431,8 @@ app.get('/api/ga4/screens', async (req, res) => {
 app.get('/api/ga4/countries', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 15;
-    const data = await ga4.getCountryBreakdown(limit);
+    const days = parseInt(req.query.days) || 30;
+    const data = await ga4.getCountryBreakdown(limit, days);
     res.json(data);
   } catch (error) {
     console.error('Error fetching GA4 countries:', error);
@@ -439,13 +440,37 @@ app.get('/api/ga4/countries', async (req, res) => {
   }
 });
 
+app.get('/api/ga4/cities', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 15;
+    const days = parseInt(req.query.days) || 30;
+    const data = await ga4.getCityBreakdown(limit, days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching GA4 cities:', error);
+    res.status(500).json({ error: 'Failed to fetch GA4 cities' });
+  }
+});
+
 app.get('/api/ga4/devices', async (req, res) => {
   try {
-    const data = await ga4.getDeviceBreakdown();
+    const days = parseInt(req.query.days) || 30;
+    const data = await ga4.getDeviceBreakdown(days);
     res.json(data);
   } catch (error) {
     console.error('Error fetching GA4 devices:', error);
     res.status(500).json({ error: 'Failed to fetch GA4 devices' });
+  }
+});
+
+app.get('/api/ga4/os', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const data = await ga4.getOSBreakdown(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching GA4 OS breakdown:', error);
+    res.status(500).json({ error: 'Failed to fetch GA4 OS breakdown' });
   }
 });
 

@@ -2,6 +2,9 @@
 html, body {
   background: #010409;
   overscroll-behavior: none;
+}
+
+body {
   overflow-x: hidden;
   max-width: 100vw;
 }

@@ -72,6 +72,17 @@
       font-size: 10px;
       letter-spacing: 0.05em;
     }
+    .source-bar {
+      height: 8px;
+      background: rgba(48, 54, 61, 0.3);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .source-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
   </style>
 </head>
 <body class="font-sans text-racing-text">
@@ -449,6 +460,73 @@
                   </div>
                   <p class="text-racing-muted text-xs">Uploaded Media</p>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== VISITOR DEMOGRAPHICS ==================== -->
+        <section class="tier-card rounded-xl overflow-hidden">
+          <div class="tier-header px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="tier-badge bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded font-semibold uppercase">Demographics</span>
+              <h2 class="text-lg font-semibold text-white">Visitor Demographics</h2>
+            </div>
+            <span class="text-xs text-racing-muted">Last 7 days - App users by location</span>
+          </div>
+
+          <div class="p-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- Countries -->
+              <div>
+                <h3 class="text-sm font-medium text-racing-muted mb-3 flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  Top Countries
+                </h3>
+                <div id="appCountries" class="space-y-2">
+                  <div class="text-sm text-racing-muted py-4">Loading...</div>
+                </div>
+              </div>
+
+              <!-- Cities -->
+              <div>
+                <h3 class="text-sm font-medium text-racing-muted mb-3 flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  </svg>
+                  Top Cities
+                </h3>
+                <div id="appCities" class="space-y-2">
+                  <div class="text-sm text-racing-muted py-4">Loading...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== TECHNOLOGY & DEVICES ==================== -->
+        <section class="tier-card rounded-xl overflow-hidden">
+          <div class="tier-header px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="tier-badge bg-orange-500/20 text-orange-400 px-2 py-1 rounded font-semibold uppercase">Technology</span>
+              <h2 class="text-lg font-semibold text-white">Devices</h2>
+            </div>
+            <span class="text-xs text-racing-muted">Last 7 days - Operating systems</span>
+          </div>
+
+          <div class="p-6">
+            <div>
+              <h3 class="text-sm font-medium text-racing-muted mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                </svg>
+                Operating System
+              </h3>
+              <div id="appOS" class="space-y-2">
+                <div class="text-sm text-racing-muted py-4">Loading...</div>
               </div>
             </div>
           </div>

@@ -221,12 +221,12 @@ async function getTopScreens(limit = 10) {
 }
 
 // Country breakdown
-async function getCountryBreakdown(limit = 15) {
+async function getCountryBreakdown(limit = 15, days = 30) {
   const client = getClient();
   const filter = getProdFilter();
   const [response] = await client.runReport({
     property: getPropertyId(),
-    dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+    dateRanges: [{ startDate: `${days}daysAgo`, endDate: 'today' }],
     ...(filter && { dimensionFilter: filter }),
     dimensions: [{ name: 'country' }],
     metrics: [{ name: 'activeUsers' }, { name: 'sessions' }],
@@ -241,13 +241,34 @@ async function getCountryBreakdown(limit = 15) {
   })) || [];
 }
 
-// Device breakdown
-async function getDeviceBreakdown() {
+// City breakdown
+async function getCityBreakdown(limit = 15, days = 30) {
   const client = getClient();
   const filter = getProdFilter();
   const [response] = await client.runReport({
     property: getPropertyId(),
-    dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+    dateRanges: [{ startDate: `${days}daysAgo`, endDate: 'today' }],
+    ...(filter && { dimensionFilter: filter }),
+    dimensions: [{ name: 'city' }, { name: 'country' }],
+    metrics: [{ name: 'activeUsers' }],
+    orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+    limit
+  });
+
+  return response.rows?.map(row => ({
+    city: row.dimensionValues[0].value,
+    country: row.dimensionValues[1].value,
+    users: parseInt(row.metricValues[0].value) || 0
+  })) || [];
+}
+
+// Device breakdown
+async function getDeviceBreakdown(days = 30) {
+  const client = getClient();
+  const filter = getProdFilter();
+  const [response] = await client.runReport({
+    property: getPropertyId(),
+    dateRanges: [{ startDate: `${days}daysAgo`, endDate: 'today' }],
     ...(filter && { dimensionFilter: filter }),
     dimensions: [{ name: 'platform' }],
     metrics: [{ name: 'activeUsers' }],
@@ -256,6 +277,26 @@ async function getDeviceBreakdown() {
 
   return response.rows?.map(row => ({
     platform: row.dimensionValues[0].value,
+    users: parseInt(row.metricValues[0].value) || 0
+  })) || [];
+}
+
+// Operating system breakdown
+async function getOSBreakdown(days = 30) {
+  const client = getClient();
+  const filter = getProdFilter();
+  const [response] = await client.runReport({
+    property: getPropertyId(),
+    dateRanges: [{ startDate: `${days}daysAgo`, endDate: 'today' }],
+    ...(filter && { dimensionFilter: filter }),
+    dimensions: [{ name: 'operatingSystem' }],
+    metrics: [{ name: 'activeUsers' }],
+    orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+    limit: 10
+  });
+
+  return response.rows?.map(row => ({
+    os: row.dimensionValues[0].value,
     users: parseInt(row.metricValues[0].value) || 0
   })) || [];
 }
@@ -686,7 +727,9 @@ module.exports = {
   getTrafficSources,
   getTopScreens,
   getCountryBreakdown,
+  getCityBreakdown,
   getDeviceBreakdown,
+  getOSBreakdown,
   getUserRetention,
   getEngagementTrend,
   debugTest,

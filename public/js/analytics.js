@@ -202,6 +202,133 @@ function updateCircularProgress(circleId, rateId, rate) {
 }
 
 // ============================================
+// Demographics & Technology
+// ============================================
+
+const countryFlags = {
+  'United States': '\u{1F1FA}\u{1F1F8}', 'United Kingdom': '\u{1F1EC}\u{1F1E7}',
+  'Canada': '\u{1F1E8}\u{1F1E6}', 'Australia': '\u{1F1E6}\u{1F1FA}',
+  'Germany': '\u{1F1E9}\u{1F1EA}', 'France': '\u{1F1EB}\u{1F1F7}',
+  'Spain': '\u{1F1EA}\u{1F1F8}', 'Italy': '\u{1F1EE}\u{1F1F9}',
+  'Netherlands': '\u{1F1F3}\u{1F1F1}', 'Belgium': '\u{1F1E7}\u{1F1EA}',
+  'Switzerland': '\u{1F1E8}\u{1F1ED}', 'Austria': '\u{1F1E6}\u{1F1F9}',
+  'Portugal': '\u{1F1F5}\u{1F1F9}', 'Brazil': '\u{1F1E7}\u{1F1F7}',
+  'Mexico': '\u{1F1F2}\u{1F1FD}', 'Japan': '\u{1F1EF}\u{1F1F5}',
+  'South Korea': '\u{1F1F0}\u{1F1F7}', 'China': '\u{1F1E8}\u{1F1F3}',
+  'India': '\u{1F1EE}\u{1F1F3}', 'Singapore': '\u{1F1F8}\u{1F1EC}',
+  'New Zealand': '\u{1F1F3}\u{1F1FF}', 'Ireland': '\u{1F1EE}\u{1F1EA}',
+  'Sweden': '\u{1F1F8}\u{1F1EA}', 'Norway': '\u{1F1F3}\u{1F1F4}',
+  'Denmark': '\u{1F1E9}\u{1F1F0}', 'Finland': '\u{1F1EB}\u{1F1EE}',
+  'Poland': '\u{1F1F5}\u{1F1F1}', 'Czech Republic': '\u{1F1E8}\u{1F1FF}',
+  'Czechia': '\u{1F1E8}\u{1F1FF}', 'Hungary': '\u{1F1ED}\u{1F1FA}',
+  'Russia': '\u{1F1F7}\u{1F1FA}', 'South Africa': '\u{1F1FF}\u{1F1E6}',
+  'Argentina': '\u{1F1E6}\u{1F1F7}', 'Chile': '\u{1F1E8}\u{1F1F1}',
+  'Colombia': '\u{1F1E8}\u{1F1F4}', 'Thailand': '\u{1F1F9}\u{1F1ED}',
+  'Malaysia': '\u{1F1F2}\u{1F1FE}', 'Indonesia': '\u{1F1EE}\u{1F1E9}',
+  'Philippines': '\u{1F1F5}\u{1F1ED}', 'Vietnam': '\u{1F1FB}\u{1F1F3}',
+  'Turkey': '\u{1F1F9}\u{1F1F7}', 'Israel': '\u{1F1EE}\u{1F1F1}',
+  'United Arab Emirates': '\u{1F1E6}\u{1F1EA}', 'Saudi Arabia': '\u{1F1F8}\u{1F1E6}',
+  'Egypt': '\u{1F1EA}\u{1F1EC}', 'Greece': '\u{1F1EC}\u{1F1F7}',
+  'Romania': '\u{1F1F7}\u{1F1F4}', 'Ukraine': '\u{1F1FA}\u{1F1E6}'
+};
+
+function getFlag(country) {
+  return countryFlags[country] || '\u{1F30D}';
+}
+
+async function loadAppCountries() {
+  const data = await fetchData('ga4/countries?days=7&limit=10');
+  const container = document.getElementById('appCountries');
+
+  if (!data || data.length === 0) {
+    container.innerHTML = '<div class="text-sm text-racing-muted py-4">No country data available</div>';
+    return;
+  }
+
+  const maxUsers = Math.max(...data.map(c => c.users));
+
+  container.innerHTML = data.map(country => {
+    const pct = (country.users / maxUsers * 100).toFixed(0);
+    const flag = getFlag(country.country);
+    return `
+      <div class="bg-racing-dark/50 rounded-lg p-2.5">
+        <div class="flex items-center justify-between mb-1.5">
+          <div class="flex items-center gap-2">
+            <span class="text-base">${flag}</span>
+            <span class="text-sm text-white">${country.country}</span>
+          </div>
+          <div class="text-right">
+            <span class="text-sm font-bold text-white">${formatNumber(country.users)}</span>
+            <span class="text-xs text-racing-muted ml-1">users</span>
+          </div>
+        </div>
+        <div class="source-bar">
+          <div class="source-bar-fill bg-blue-500" style="width: ${pct}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadAppCities() {
+  const data = await fetchData('ga4/cities?days=7&limit=10');
+  const container = document.getElementById('appCities');
+
+  if (!data || data.length === 0) {
+    container.innerHTML = '<div class="text-sm text-racing-muted py-4">No city data available</div>';
+    return;
+  }
+
+  const maxUsers = Math.max(...data.map(c => c.users));
+
+  container.innerHTML = data.map(city => {
+    const pct = (city.users / maxUsers * 100).toFixed(0);
+    const flag = getFlag(city.country);
+    return `
+      <div class="bg-racing-dark/50 rounded-lg p-2.5">
+        <div class="flex items-center justify-between mb-1.5">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+            <span class="text-base flex-shrink-0">${flag}</span>
+            <span class="text-sm text-white truncate" title="${city.city}, ${city.country}">${city.city}</span>
+          </div>
+          <div class="text-right flex-shrink-0 ml-2">
+            <span class="text-sm font-bold text-white">${formatNumber(city.users)}</span>
+          </div>
+        </div>
+        <div class="source-bar">
+          <div class="source-bar-fill bg-green-500" style="width: ${pct}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadAppOS() {
+  const data = await fetchData('ga4/os?days=7');
+  const container = document.getElementById('appOS');
+
+  if (!data || data.length === 0) {
+    container.innerHTML = '<div class="text-sm text-racing-muted py-4">No OS data available</div>';
+    return;
+  }
+
+  const maxUsers = Math.max(...data.map(o => o.users));
+
+  container.innerHTML = data.map(os => {
+    const pct = (os.users / maxUsers * 100).toFixed(0);
+    return `
+      <div class="flex items-center justify-between text-sm py-1">
+        <span class="text-racing-text truncate mr-2">${os.os}</span>
+        <span class="text-white font-medium">${formatNumber(os.users)}</span>
+      </div>
+      <div class="source-bar mb-1">
+        <div class="source-bar-fill bg-cyan-500" style="width: ${pct}%"></div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================
 // Refresh & Initialize
 // ============================================
 
@@ -220,7 +347,11 @@ async function refreshData() {
     updateRecordingsPerUser(),
     // Tier 3
     updateSocialEngagement(),
-    updateFeatureAdoption()
+    updateFeatureAdoption(),
+    // Demographics & Technology
+    loadAppCountries(),
+    loadAppCities(),
+    loadAppOS()
   ]);
 
   document.getElementById('loading').classList.add('hidden');
