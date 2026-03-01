@@ -340,8 +340,33 @@ async function getUserEvents(userId, startDate, endDate) {
   const startSuffix = startDate.replace(/-/g, '');
   const endSuffix = endDate.replace(/-/g, '');
 
+  // Check if the date range includes today — if so, include intraday table
+  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const includesToday = endSuffix >= todaySuffix;
+
+  let intradayUnion = '';
+  if (includesToday) {
+    const intradayTable = `events_intraday_${todaySuffix}`;
+    const hasIntraday = await tableExists(client, intradayTable);
+    if (hasIntraday) {
+      intradayUnion = `
+        UNION ALL
+        SELECT event_timestamp, event_name, event_params, user_id
+        FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
+        WHERE user_id = @userId
+      `;
+    }
+  }
+
   // Fetch all event_params as a JSON object for maximum flexibility
   const query = `
+    WITH all_events AS (
+      SELECT event_timestamp, event_name, event_params, user_id
+      FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+      WHERE _TABLE_SUFFIX BETWEEN @startSuffix AND @endSuffix
+        AND user_id = @userId
+      ${intradayUnion}
+    )
     SELECT
       TIMESTAMP_MICROS(event_timestamp) as event_time,
       event_name,
@@ -349,9 +374,7 @@ async function getUserEvents(userId, startDate, endDate) {
         SELECT ARRAY_AGG(STRUCT(key, value.string_value, value.int_value, value.double_value))
         FROM UNNEST(event_params)
       ) as params
-    FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
-    WHERE _TABLE_SUFFIX BETWEEN @startSuffix AND @endSuffix
-      AND user_id = @userId
+    FROM all_events
     ORDER BY event_timestamp DESC
     LIMIT 1000
   `;
