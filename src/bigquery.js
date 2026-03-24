@@ -437,8 +437,8 @@ async function getUserEvents(userId, startDate, endDate) {
   return Object.values(eventsByDate).sort((a, b) => b.date.localeCompare(a.date));
 }
 
-// Web Analytics Stream ID (marketing website)
-const WEB_STREAM_ID = '13282628457';
+// Web Analytics Stream ID (production website only — exclude dev/staging traffic)
+const WEB_STREAM_ID = process.env.WEB_STREAM_ID || '14050038536';
 
 // ============================================
 // WEB ANALYTICS FUNCTIONS

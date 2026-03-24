@@ -11,7 +11,8 @@
       "Bash(pkill:*)",
       "Bash(python3:*)",
       "Bash(timeout 5 npm start)",
-      "Bash(timeout 8 sh -c 'node src/server.js & sleep 3 && curl -s http://localhost:3000/api/rtdb/live')"
+      "Bash(timeout 8 sh -c 'node src/server.js & sleep 3 && curl -s http://localhost:3000/api/rtdb/live')",
+      "Bash(find /Users/tiago/Documents/personal/xracing-dashboard -type f \\\\\\(-name *.env* -o -name *config* \\\\\\))"
     ],
     "deny": [],
     "ask": []
