@@ -437,8 +437,10 @@ async function getUserEvents(userId, startDate, endDate) {
   return Object.values(eventsByDate).sort((a, b) => b.date.localeCompare(a.date));
 }
 
-// Web Analytics Stream ID (production website only — exclude dev/staging traffic)
-const WEB_STREAM_ID = process.env.WEB_STREAM_ID || '14050038536';
+// Web Analytics Stream IDs (production website only — exclude dev/staging traffic)
+// Includes old "web" stream (historical data) + new "web_prod" stream
+const WEB_STREAM_IDS = (process.env.WEB_STREAM_IDS || '14050038536')
+  .split(',').map(id => id.trim()).filter(Boolean);
 
 // ============================================
 // WEB ANALYTICS FUNCTIONS
@@ -448,8 +450,9 @@ const WEB_STREAM_ID = process.env.WEB_STREAM_ID || '14050038536';
 async function buildWebTableQuery(client, days, streamFilter = true) {
   const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const intradayTable = `events_intraday_${todaySuffix}`;
-  const streamCondition = streamFilter ? `AND stream_id = '${WEB_STREAM_ID}'` : '';
-  const streamConditionOnly = streamFilter ? `WHERE stream_id = '${WEB_STREAM_ID}'` : '';
+  const streamIn = WEB_STREAM_IDS.map(id => `'${id}'`).join(', ');
+  const streamCondition = streamFilter ? `AND stream_id IN (${streamIn})` : '';
+  const streamConditionOnly = streamFilter ? `WHERE stream_id IN (${streamIn})` : '';
 
   // Check if intraday table exists
   const hasIntraday = await tableExists(client, intradayTable);
