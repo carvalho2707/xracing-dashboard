@@ -520,14 +520,13 @@ async function getWebPages(days = 30) {
       ${tableQuery}
     )
     SELECT
-      ${getEventParam('page_location')} as page_url,
-      ${getEventParam('page_title')} as page_title,
+      ${getEventParam('screen_name')} as screen_name,
       COUNT(*) as views,
       COUNT(DISTINCT user_pseudo_id) as unique_visitors,
       AVG(${getEventParam('engagement_time_msec', 'int')}) as avg_engagement_ms
     FROM all_events
-    WHERE event_name = 'page_view'
-    GROUP BY page_url, page_title
+    WHERE event_name = 'screen_view'
+    GROUP BY screen_name
     ORDER BY views DESC
     LIMIT 50
   `;
@@ -535,8 +534,7 @@ async function getWebPages(days = 30) {
   const [rows] = await client.query({ query });
 
   return rows.map(row => ({
-    pageUrl: row.page_url || '(not set)',
-    pageTitle: row.page_title || '(not set)',
+    screenName: row.screen_name || '(not set)',
     views: parseInt(row.views) || 0,
     uniqueVisitors: parseInt(row.unique_visitors) || 0,
     avgEngagementSec: row.avg_engagement_ms ? Math.round(row.avg_engagement_ms / 1000) : 0

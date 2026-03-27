@@ -122,14 +122,12 @@ async function loadPages() {
 
   container.innerHTML = data.slice(0, 10).map(page => {
     const percentage = (page.views / maxViews * 100).toFixed(0);
-    const url = formatUrl(page.pageUrl);
 
     return `
       <div class="bg-racing-dark/50 rounded-lg p-3">
         <div class="flex items-center justify-between mb-2">
           <div class="flex-1 min-w-0 mr-4">
-            <p class="text-sm text-white font-medium truncate" title="${page.pageUrl}">${url}</p>
-            <p class="text-xs text-racing-muted truncate">${page.pageTitle || '(no title)'}</p>
+            <p class="text-sm text-white font-medium truncate">${page.screenName}</p>
           </div>
           <div class="text-right flex-shrink-0">
             <p class="text-sm font-bold text-white">${formatNumber(page.views)}</p>
