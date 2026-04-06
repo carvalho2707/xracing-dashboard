@@ -18,7 +18,7 @@ async function updateOverview() {
 
   document.getElementById('totalUsers').textContent = formatNumber(parseInt(data.total_users));
   document.getElementById('newUsers7d').textContent = `+${formatNumber(parseInt(data.new_users_7d))} this week`;
-  document.getElementById('totalRecordings').textContent = formatNumber(parseInt(data.total_recordings));
+  document.getElementById('totalRecordings').textContent = parseInt(data.total_recordings).toLocaleString();
   document.getElementById('recordings30d').textContent = `+${formatNumber(parseInt(data.recordings_30d))} last 30 days`;
   document.getElementById('totalTracks').textContent = formatNumber(parseInt(data.total_tracks));
   document.getElementById('totalEvents').textContent = formatNumber(parseInt(data.total_events));
