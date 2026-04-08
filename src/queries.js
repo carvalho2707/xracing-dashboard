@@ -874,7 +874,7 @@ const queries = {
   // Get all users for dropdown (sorted by name)
   async getAllUsers() {
     const result = await db.query(`
-      SELECT id, username, first_name, last_name
+      SELECT id, username, first_name, last_name, created_at
       FROM users
       ORDER BY
         COALESCE(NULLIF(first_name, ''), username) ASC,
