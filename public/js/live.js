@@ -102,25 +102,25 @@ function renderTrackRecordings(tracks) {
 
   container.innerHTML = tracks.map(track => `
     <div class="mb-4 last:mb-0">
-      <div class="flex items-center justify-between p-3 bg-racing-dark/50 rounded-t-lg border-b border-racing-border/50">
+      <div class="flex items-center justify-between p-3 bg-racing-dark/50 rounded-t-lg border-b border-racing-border/50 track-group-header">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="w-8 h-8 md:w-10 md:h-10 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg class="w-4 h-4 md:w-5 md:h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7"/>
             </svg>
           </div>
           <div>
-            <p class="text-white font-medium">${track.trackName || track.trackId}</p>
+            <p class="text-white font-medium text-sm md:text-base">${track.trackName || track.trackId}</p>
             ${track.locationCity || track.locationCountry ?
               `<p class="text-xs text-racing-muted">${[track.locationCity, track.locationCountry].filter(Boolean).join(', ')}</p>` : ''}
           </div>
         </div>
-        <div class="flex items-center gap-4">
-          <span class="text-racing-muted text-sm" title="Total Views">
+        <div class="flex items-center gap-2 md:gap-4 flex-wrap track-group-stats">
+          <span class="text-racing-muted text-xs md:text-sm" title="Total Views">
             ${track.totalViewCount || 0} views
           </span>
-          <span class="text-cyan-400 text-sm" title="Current Viewers">
-            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span class="text-cyan-400 text-xs md:text-sm" title="Current Viewers">
+            <svg class="w-3 h-3 md:w-4 md:h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
             </svg>
@@ -135,34 +135,34 @@ function renderTrackRecordings(tracks) {
           </span>` : ''}
         </div>
       </div>
-      <div class="bg-racing-dark/30 rounded-b-lg overflow-x-auto">
+      <div class="bg-racing-dark/30 rounded-b-lg responsive-table">
         <table class="w-full">
           <thead>
-            <tr class="text-racing-muted text-sm border-b border-racing-border/50">
-              <th class="text-left py-2 px-3">Recording</th>
-              <th class="text-left py-2 px-3">Driver</th>
-              <th class="text-left py-2 px-3">Start Time</th>
-              <th class="text-left py-2 px-3">RTDB</th>
-              <th class="text-left py-2 px-3">DB</th>
+            <tr class="text-racing-muted text-xs md:text-sm border-b border-racing-border/50">
+              <th class="text-left py-2 px-2 md:px-3">Recording</th>
+              <th class="text-left py-2 px-2 md:px-3">Driver</th>
+              <th class="text-left py-2 px-2 md:px-3">Start Time</th>
+              <th class="text-left py-2 px-2 md:px-3">RTDB</th>
+              <th class="text-left py-2 px-2 md:px-3">DB</th>
             </tr>
           </thead>
           <tbody>
             ${track.recordings.map(rec => `
               <tr class="border-b border-racing-border/30 last:border-0 hover:bg-racing-border/20">
-                <td class="py-2 px-3">
+                <td class="py-2 px-2 md:px-3">
                   <span class="text-racing-muted text-xs font-mono cursor-pointer hover:text-white transition-colors"
                         onclick="copyRecordingId('${rec.recordingId}', this)"
                         title="Click to copy: ${rec.recordingId}">${rec.recordingId.substring(0, 8)}...</span>
                 </td>
-                <td class="py-2 px-3">
-                  <span class="text-white text-sm">${rec.username || rec.driverName}</span>
+                <td class="py-2 px-2 md:px-3">
+                  <span class="text-white text-xs md:text-sm">${rec.username || rec.driverName}</span>
                 </td>
-                <td class="py-2 px-3 text-racing-muted text-sm">${rec.startTime ? formatDateTime(rec.startTime) : '-'}</td>
-                <td class="py-2 px-3">
-                  <span class="px-2 py-1 rounded text-xs font-medium text-white ${getRTDBStatusColor(rec.status)}">${getRTDBStatusName(rec.status)}</span>
+                <td class="py-2 px-2 md:px-3 text-racing-muted text-xs md:text-sm whitespace-nowrap">${rec.startTime ? formatDateTime(rec.startTime) : '-'}</td>
+                <td class="py-2 px-2 md:px-3">
+                  <span class="px-1.5 md:px-2 py-0.5 md:py-1 rounded text-xs font-medium text-white whitespace-nowrap ${getRTDBStatusColor(rec.status)}">${getRTDBStatusName(rec.status)}</span>
                 </td>
-                <td class="py-2 px-3">
-                  <span class="px-2 py-1 rounded text-xs font-medium text-white ${getDBStatusColor(rec.dbStatus)}">${getDBStatusName(rec.dbStatus)}</span>
+                <td class="py-2 px-2 md:px-3">
+                  <span class="px-1.5 md:px-2 py-0.5 md:py-1 rounded text-xs font-medium text-white whitespace-nowrap ${getDBStatusColor(rec.dbStatus)}">${getDBStatusName(rec.dbStatus)}</span>
                 </td>
               </tr>
             `).join('')}
@@ -185,23 +185,23 @@ function renderNoTrackRecordings(recordings) {
   tbody.innerHTML = recordings.map(rec => {
     return `
       <tr class="border-b border-racing-border/50 hover:bg-racing-border/20">
-        <td class="py-3 px-2">
+        <td class="py-2 md:py-3 px-2">
           <span class="text-racing-muted text-xs font-mono cursor-pointer hover:text-white transition-colors"
                 onclick="copyRecordingId('${rec.recordingId}', this)"
                 title="Click to copy: ${rec.recordingId}">${rec.recordingId.substring(0, 8)}...</span>
         </td>
-        <td class="py-3 px-2">
-          <span class="text-white font-medium">${rec.username || rec.driverName}</span>
+        <td class="py-2 md:py-3 px-2">
+          <span class="text-white text-xs md:text-sm font-medium">${rec.username || rec.driverName}</span>
         </td>
-        <td class="py-3 px-2 text-racing-muted text-sm">${rec.startTime ? formatDateTime(rec.startTime) : '-'}</td>
-        <td class="py-3 px-2">
-          <span class="px-2 py-1 rounded text-xs font-medium text-white ${getRTDBStatusColor(rec.status)}">${getRTDBStatusName(rec.status)}</span>
+        <td class="py-2 md:py-3 px-2 text-racing-muted text-xs md:text-sm whitespace-nowrap">${rec.startTime ? formatDateTime(rec.startTime) : '-'}</td>
+        <td class="py-2 md:py-3 px-2">
+          <span class="px-1.5 md:px-2 py-0.5 md:py-1 rounded text-xs font-medium text-white whitespace-nowrap ${getRTDBStatusColor(rec.status)}">${getRTDBStatusName(rec.status)}</span>
         </td>
-        <td class="py-3 px-2">
-          <span class="px-2 py-1 rounded text-xs font-medium text-white ${getDBStatusColor(rec.dbStatus)}">${getDBStatusName(rec.dbStatus)}</span>
+        <td class="py-2 md:py-3 px-2">
+          <span class="px-1.5 md:px-2 py-0.5 md:py-1 rounded text-xs font-medium text-white whitespace-nowrap ${getDBStatusColor(rec.dbStatus)}">${getDBStatusName(rec.dbStatus)}</span>
         </td>
-        <td class="py-3 px-2 text-right">
-          <span class="text-cyan-400 font-medium">${rec.currentViewers}</span>
+        <td class="py-2 md:py-3 px-2 text-right">
+          <span class="text-cyan-400 font-medium text-xs md:text-sm">${rec.currentViewers}</span>
         </td>
       </tr>
     `;

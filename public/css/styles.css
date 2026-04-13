@@ -241,7 +241,13 @@ html {
   100% { background-position: -200% 0; }
 }
 
-/* Responsive - Mobile */
+/* Responsive tables - allow horizontal scroll */
+.responsive-table {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Responsive - Tablet and below */
 @media (max-width: 1024px) {
   .sidebar {
     transform: translateX(-100%);
@@ -269,5 +275,58 @@ html {
 
   .page-title {
     font-size: 1rem;
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 640px) {
+  .page-content {
+    padding: 0.75rem;
+  }
+
+  /* Section headers: stack title and stats vertically */
+  .section-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .section-header-stats {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Track group header: stack on mobile */
+  .track-group-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 0.75rem;
+  }
+
+  .track-group-stats {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Tier section headers */
+  .tier-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Reduce oversized text on mobile */
+  .mobile-text-2xl {
+    font-size: 1.5rem !important;
+  }
+
+  /* Table minimum width to prevent column crushing */
+  .responsive-table table {
+    min-width: 480px;
+  }
+
+  /* Glass card padding reduction on mobile */
+  .glass-card {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
   }
 }
