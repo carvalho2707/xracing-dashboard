@@ -86,7 +86,7 @@ html {
   margin-left: 240px;
   min-height: 100vh;
   transition: margin-left 0.3s ease;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* Mobile sidebar toggle */
@@ -172,7 +172,7 @@ html {
   max-width: 1400px;
   margin: 0 auto;
   padding: 1rem;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 @media (min-width: 640px) {
