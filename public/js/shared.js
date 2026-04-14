@@ -118,6 +118,7 @@ function initSidebar() {
     toggle.addEventListener('click', () => {
       sidebar?.classList.toggle('open');
       overlay?.classList.toggle('open');
+      toggle.classList.add('hidden');
     });
   }
 
@@ -125,6 +126,7 @@ function initSidebar() {
     overlay.addEventListener('click', () => {
       sidebar?.classList.remove('open');
       overlay?.classList.remove('open');
+      toggle?.classList.remove('hidden');
     });
   }
 

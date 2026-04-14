@@ -109,6 +109,11 @@ html {
   height: 1.5rem;
 }
 
+/* Hide hamburger when sidebar is open */
+.sidebar-toggle.hidden {
+  display: none !important;
+}
+
 /* Mobile overlay */
 .sidebar-overlay {
   display: none;
