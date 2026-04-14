@@ -199,8 +199,8 @@
             </div>
           </div>
           <div class="flex items-end sm:col-span-2 lg:col-span-1">
-            <button onclick="searchUser()" id="searchBtn"
-              class="w-full px-6 py-2 bg-racing-red hover:bg-red-600 text-white font-medium rounded-lg transition-colors">
+            <button onclick="searchUser()" id="searchBtn" disabled
+              class="w-full px-6 py-2 bg-racing-red hover:bg-red-600 text-white font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-racing-red">
               Search
             </button>
           </div>
@@ -261,7 +261,7 @@
         <div class="glass-card rounded-xl p-4 sm:p-6">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h3 class="text-lg font-semibold text-white">Activity Summary</h3>
-            <div class="flex gap-6">
+            <div class="flex items-center gap-6">
               <div class="text-center">
                 <p class="text-2xl font-bold text-white" id="totalDays">-</p>
                 <p class="text-xs text-racing-muted">Active Days</p>
@@ -270,6 +270,12 @@
                 <p class="text-2xl font-bold text-racing-red" id="totalEvents">-</p>
                 <p class="text-xs text-racing-muted">Total Events</p>
               </div>
+              <button onclick="exportCSV()" class="px-3 py-2 bg-racing-card hover:bg-racing-border text-sm text-racing-text rounded-lg transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                CSV
+              </button>
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@
 let currentUser = null;
 let selectedUser = null; // User selected from autocomplete
 let userAutocomplete = null;
+let lastTimelineData = null; // Store for CSV export
 
 // Initialize date inputs with default values (last 7 days)
 function initDateInputs() {
@@ -159,6 +160,7 @@ async function searchUser() {
 
 // Render the timeline
 function renderTimeline(data) {
+  lastTimelineData = data;
   document.getElementById('timelineResults').classList.remove('hidden');
 
   // Calculate totals
@@ -257,6 +259,55 @@ function renderTimeline(data) {
   }).join('');
 }
 
+// Toggle search button enabled/disabled
+function updateSearchButton() {
+  const btn = document.getElementById('searchBtn');
+  const input = document.getElementById('usernameInput');
+  btn.disabled = !selectedUser && !input.value.trim();
+}
+
+// Export timeline data to CSV
+function exportCSV() {
+  if (!lastTimelineData || !currentUser) return;
+
+  const rows = [['Date', 'Time', 'Event', 'Screen', 'Count', 'Parameters']];
+
+  lastTimelineData.forEach(day => {
+    const dateStr = formatGA4Date(day.date);
+    day.events.forEach(event => {
+      const label = event.actionLabel || event.eventName;
+      const params = event.params || {};
+      const paramStr = Object.entries(params)
+        .filter(([k, v]) => v && !['screen_name', 'firebase_screen', 'action_type', 'timestamp',
+          'ga_session_id', 'ga_session_number', 'engaged_session_event',
+          'firebase_event_origin', 'firebase_screen_class', 'firebase_screen_id',
+          'firebase_previous_screen', 'firebase_previous_class', 'firebase_previous_id',
+          'entrances', 'session_engaged', 'page_title', 'page_location',
+          'page_referrer', 'engagement_time_msec'].includes(k))
+        .map(([k, v]) => `${k}=${v}`)
+        .join('; ');
+
+      rows.push([
+        dateStr,
+        event.time || '',
+        label,
+        event.screenName || '',
+        event.count || 1,
+        paramStr
+      ]);
+    });
+  });
+
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${currentUser.username}_timeline.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   initDateInputs();
@@ -266,17 +317,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // onSelect callback
     (user) => {
       selectedUser = user;
+      updateSearchButton();
     },
     // onClear callback
     () => {
       selectedUser = null;
+      updateSearchButton();
     }
   );
 
+  const usernameInput = document.getElementById('usernameInput');
+
   // Allow Enter key to search
-  document.getElementById('usernameInput').addEventListener('keypress', (e) => {
+  usernameInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       searchUser();
     }
+  });
+
+  // Update button state as user types
+  usernameInput.addEventListener('input', () => {
+    if (!usernameInput.value.trim()) {
+      selectedUser = null;
+    }
+    updateSearchButton();
   });
 });
