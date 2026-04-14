@@ -1,5 +1,11 @@
 // Shared utilities and components for xracing dashboard
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => console.error('SW registration failed:', err));
+  });
+}
+
 // Chart.js default config
 if (typeof Chart !== 'undefined') {
   Chart.defaults.color = '#8B949E';
