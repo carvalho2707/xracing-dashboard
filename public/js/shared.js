@@ -404,7 +404,123 @@ function initUserAutocomplete(inputId, onSelect, onClear) {
 }
 
 // ============================================
+// Pull-to-refresh for installed PWA/mobile
+// ============================================
+
+function initPullToRefresh() {
+  if (!window.matchMedia('(pointer: coarse)').matches) return;
+
+  const indicator = document.createElement('div');
+  indicator.className = 'pull-to-refresh';
+  indicator.setAttribute('aria-live', 'polite');
+  indicator.innerHTML = `
+    <span class="pull-to-refresh-spinner" aria-hidden="true"></span>
+    <span class="pull-to-refresh-text">Pull to refresh</span>
+  `;
+  document.body.appendChild(indicator);
+
+  const label = indicator.querySelector('.pull-to-refresh-text');
+  const threshold = 82;
+  const maxOffset = 68;
+  const interactiveSelector = 'input, textarea, select, button, a, [contenteditable="true"], .responsive-table';
+  let startY = 0;
+  let pullDistance = 0;
+  let pulling = false;
+  let refreshing = false;
+
+  function getScrollTop() {
+    return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+  }
+
+  function canStartPull(event) {
+    if (refreshing || event.touches.length !== 1 || getScrollTop() > 0) return false;
+    if (document.getElementById('sidebar')?.classList.contains('open')) return false;
+    const target = event.target instanceof Element ? event.target : event.target.parentElement;
+    return !target?.closest(interactiveSelector);
+  }
+
+  function setIndicator(offset) {
+    indicator.style.transform = `translate(-50%, ${offset}px)`;
+  }
+
+  function resetIndicator() {
+    pulling = false;
+    pullDistance = 0;
+    indicator.classList.remove('visible', 'ready', 'refreshing');
+    label.textContent = 'Pull to refresh';
+    indicator.style.transform = '';
+  }
+
+  async function runRefresh() {
+    refreshing = true;
+    indicator.classList.remove('ready');
+    indicator.classList.add('visible', 'refreshing');
+    setIndicator(12);
+    label.textContent = 'Refreshing...';
+
+    try {
+      if (typeof window.refreshData === 'function') {
+        await window.refreshData();
+      } else {
+        window.location.reload();
+      }
+    } finally {
+      refreshing = false;
+      window.setTimeout(resetIndicator, 250);
+    }
+  }
+
+  document.addEventListener('touchstart', (event) => {
+    if (!canStartPull(event)) return;
+    startY = event.touches[0].clientY;
+    pulling = true;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (event) => {
+    if (!pulling || refreshing) return;
+
+    pullDistance = event.touches[0].clientY - startY;
+    if (pullDistance <= 0 || getScrollTop() > 0) {
+      resetIndicator();
+      return;
+    }
+
+    if (pullDistance < 8) return;
+
+    event.preventDefault();
+    const offset = Math.min(maxOffset, pullDistance * 0.45);
+    setIndicator(offset);
+    indicator.classList.add('visible');
+
+    if (pullDistance >= threshold) {
+      indicator.classList.add('ready');
+      label.textContent = 'Release to refresh';
+    } else {
+      indicator.classList.remove('ready');
+      label.textContent = 'Pull to refresh';
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', () => {
+    if (!pulling || refreshing) return;
+
+    if (pullDistance >= threshold) {
+      runRefresh();
+    } else {
+      resetIndicator();
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchcancel', () => {
+    if (!refreshing) resetIndicator();
+  }, { passive: true });
+}
+
+// ============================================
 // Initialize on DOM Ready
 // ============================================
 
-document.addEventListener('DOMContentLoaded', initSidebar);
+document.addEventListener('DOMContentLoaded', () => {
+  initSidebar();
+  initPullToRefresh();
+});

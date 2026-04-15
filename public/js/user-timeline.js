@@ -158,6 +158,16 @@ async function searchUser() {
   }
 }
 
+async function refreshData() {
+  const username = document.getElementById('usernameInput')?.value.trim();
+  if (selectedUser || username) {
+    await searchUser();
+    return;
+  }
+
+  window.location.reload();
+}
+
 // Render the timeline
 function renderTimeline(data) {
   lastTimelineData = data;

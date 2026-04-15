@@ -1,4 +1,4 @@
-const VERSION = 'v1';
+const VERSION = 'v2';
 const STATIC_CACHE = `xracing-static-${VERSION}`;
 const RUNTIME_CACHE = `xracing-runtime-${VERSION}`;
 
