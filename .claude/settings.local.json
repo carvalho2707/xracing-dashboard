@@ -17,7 +17,8 @@
       "Bash(vercel ls *)",
       "Bash(vercel curl *)",
       "Bash(vercel logs *)",
-      "Bash(vercel env *)"
+      "Bash(vercel env *)",
+      "Bash(npx --yes npm-check-updates)"
     ],
     "deny": [],
     "ask": []
