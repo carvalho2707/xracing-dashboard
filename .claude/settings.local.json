@@ -13,7 +13,10 @@
       "Bash(timeout 5 npm start)",
       "Bash(timeout 8 sh -c 'node src/server.js & sleep 3 && curl -s http://localhost:3000/api/rtdb/live')",
       "Bash(find /Users/tiago/Documents/personal/xracing-dashboard -type f \\\\\\(-name *.env* -o -name *config* \\\\\\))",
-      "Bash(/usr/bin/sed -i '' 's|<meta name=\"theme-color\" content=\"#E53935\">|<meta name=\"theme-color\" content=\"#0D1117\">|' *.html)"
+      "Bash(/usr/bin/sed -i '' 's|<meta name=\"theme-color\" content=\"#E53935\">|<meta name=\"theme-color\" content=\"#0D1117\">|' *.html)",
+      "Bash(vercel ls *)",
+      "Bash(vercel curl *)",
+      "Bash(vercel logs *)"
     ],
     "deny": [],
     "ask": []
