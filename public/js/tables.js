@@ -178,10 +178,10 @@ async function updateRecentActivity() {
           </svg>
         </div>
         <div class="min-w-0">
-          <p class="text-white text-sm truncate">
-            <span class="font-medium">${activity.username || 'Anonymous'}</span>
-            <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badge.class}">${badge.text}</span>
-          </p>
+          <div class="flex items-center gap-2 text-white text-sm min-w-0">
+            <span class="font-medium truncate min-w-0">${activity.username || 'Anonymous'}</span>
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap flex-shrink-0 ${badge.class}">${badge.text}</span>
+          </div>
           <p class="text-racing-muted text-xs truncate">${activity.track_name || [activity.location_city, activity.location_country].filter(Boolean).join(', ') || 'Unknown'}</p>
           <p class="text-racing-muted text-xs truncate font-mono">${duration} · ${distance}</p>
         </div>

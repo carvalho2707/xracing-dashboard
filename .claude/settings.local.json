@@ -16,7 +16,8 @@
       "Bash(/usr/bin/sed -i '' 's|<meta name=\"theme-color\" content=\"#E53935\">|<meta name=\"theme-color\" content=\"#0D1117\">|' *.html)",
       "Bash(vercel ls *)",
       "Bash(vercel curl *)",
-      "Bash(vercel logs *)"
+      "Bash(vercel logs *)",
+      "Bash(vercel env *)"
     ],
     "deny": [],
     "ask": []
