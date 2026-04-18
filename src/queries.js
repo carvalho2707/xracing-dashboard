@@ -298,6 +298,11 @@ const queries = {
         t.name as track_name,
         r.location_city,
         r.location_country,
+        r.status,
+        r.validation_status,
+        r.validation_error,
+        r.total_duration,
+        r.total_distance,
         r.created_at
       FROM recordings r
       JOIN users u ON r.driver_id = u.id

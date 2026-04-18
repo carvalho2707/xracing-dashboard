@@ -39,6 +39,26 @@ function formatDuration(ms) {
   return minutes + ' min';
 }
 
+// Distance in meters if <1km, kilometers (2 decimals) otherwise
+function formatDistanceSmart(meters) {
+  const m = parseFloat(meters);
+  if (!isFinite(m) || m <= 0) return '0 m';
+  if (m < 1000) return Math.round(m) + ' m';
+  return (m / 1000).toFixed(2) + ' km';
+}
+
+// Race-style duration HH:MM:SS.mmm from milliseconds
+function formatRaceDuration(ms) {
+  const total = parseInt(ms);
+  if (!isFinite(total) || total <= 0) return '00:00:00.000';
+  const hours = Math.floor(total / 3600000);
+  const minutes = Math.floor((total % 3600000) / 60000);
+  const seconds = Math.floor((total % 60000) / 1000);
+  const millis = total % 1000;
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}.${pad(millis, 3)}`;
+}
+
 function formatMonth(dateStr) {
   const date = new Date(dateStr);
   return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });

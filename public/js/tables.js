@@ -165,9 +165,13 @@ async function updateRecentActivity() {
   if (!data) return;
 
   const container = document.getElementById('recentActivity');
-  container.innerHTML = data.map(activity => `
+  container.innerHTML = data.map(activity => {
+    const badge = recordingStatusBadge(activity);
+    const duration = formatRaceDuration(activity.total_duration);
+    const distance = formatDistanceSmart(activity.total_distance);
+    return `
     <div class="flex items-center justify-between p-3 rounded-lg bg-racing-dark/50 hover:bg-racing-border/30 transition-colors">
-      <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-3 min-w-0">
         <div class="w-8 h-8 bg-racing-red/20 rounded-full flex items-center justify-center flex-shrink-0">
           <svg class="w-4 h-4 text-racing-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
@@ -176,13 +180,37 @@ async function updateRecentActivity() {
         <div class="min-w-0">
           <p class="text-white text-sm truncate">
             <span class="font-medium">${activity.username || 'Anonymous'}</span>
+            <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badge.class}">${badge.text}</span>
           </p>
           <p class="text-racing-muted text-xs truncate">${activity.track_name || [activity.location_city, activity.location_country].filter(Boolean).join(', ') || 'Unknown'}</p>
+          <p class="text-racing-muted text-xs truncate font-mono">${duration} · ${distance}</p>
         </div>
       </div>
       <span class="text-racing-muted text-xs whitespace-nowrap ml-2">${formatDateTime(activity.created_at)}</span>
     </div>
-  `).join('');
+  `;
+  }).join('');
+}
+
+// Recording status badge — combines status + validation into a single label
+function recordingStatusBadge(r) {
+  const status = parseInt(r.status);
+  const validation = parseInt(r.validation_status);
+  // 0=LIVE, 1=UPLOADING, 2=ENDED, 3=DELETED, 4=SYNC_ERROR
+  // validation: 0=PENDING, 1=VALID, 2=INVALID
+  if (status === 0) return { text: 'LIVE', class: 'bg-blue-500/20 text-blue-400' };
+  if (status === 1) return { text: 'UPLOADING', class: 'bg-yellow-500/20 text-yellow-400' };
+  if (status === 4) return { text: 'SYNC ERROR', class: 'bg-red-500/20 text-red-400' };
+  if (status === 3) return { text: 'DELETED', class: 'bg-racing-border/50 text-racing-muted' };
+  if (status === 2) {
+    if (validation === 2) {
+      const err = r.validation_error ? ` · ${r.validation_error}` : '';
+      return { text: `ERROR${err}`, class: 'bg-red-500/20 text-red-400' };
+    }
+    if (validation === 0) return { text: 'PENDING', class: 'bg-yellow-500/20 text-yellow-400' };
+    return { text: 'SUCCESS', class: 'bg-green-500/20 text-green-400' };
+  }
+  return { text: 'UNKNOWN', class: 'bg-racing-border/50 text-racing-muted' };
 }
 
 // Update recent users
