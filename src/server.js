@@ -829,6 +829,13 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`xracing dashboard running on port ${PORT}`);
-});
+// Only start a listening server when running directly (local dev).
+// On Vercel, `api/index.js` imports this module and hands the app to the
+// serverless runtime, so we must not call listen there.
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`xracing dashboard running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
