@@ -1,12 +1,12 @@
 // Google Analytics 4 Data API queries
 const { BetaAnalyticsDataClient } = require('@google-analytics/data');
 const path = require('path');
+const { getAppStreamIds, getGrowthStreamIds } = require('./analytics-streams');
 
 let analyticsClient = null;
 
-// Production stream IDs (filter out dev and qa streams)
-// Android prod: 10194581860, iOS prod: 10194592868
-const PROD_STREAM_IDS = ['10194581860', '10194592868'];
+const STREAM_IDS = getAppStreamIds();
+const GROWTH_STREAM_IDS = getGrowthStreamIds();
 
 function getClient() {
   if (!analyticsClient) {
@@ -16,7 +16,8 @@ function getClient() {
     console.log('GA4_CREDENTIALS_BASE64:', process.env.GA4_CREDENTIALS_BASE64 ? `SET (${process.env.GA4_CREDENTIALS_BASE64.length} chars)` : 'NOT SET');
     console.log('GA4_CREDENTIALS_JSON:', process.env.GA4_CREDENTIALS_JSON ? `SET (${process.env.GA4_CREDENTIALS_JSON.length} chars)` : 'NOT SET');
     console.log('GA4_CREDENTIALS_PATH:', process.env.GA4_CREDENTIALS_PATH || 'NOT SET');
-    console.log('PROD_STREAM_IDS filter:', PROD_STREAM_IDS.join(', '));
+    console.log('STREAM_IDS filter:', STREAM_IDS.join(', '));
+    console.log('GROWTH_STREAM_IDS filter:', GROWTH_STREAM_IDS.join(', '));
     console.log('=========================');
 
     // Support: base64 encoded JSON (Railway), raw JSON, or file path (local)
@@ -47,16 +48,15 @@ function getPropertyId() {
   return `properties/${process.env.GA4_PROPERTY_ID}`;
 }
 
-// Filter to only include production streams (exclude dev and qa streams)
-function getProdFilter() {
-  if (!PROD_STREAM_IDS || PROD_STREAM_IDS.length === 0) {
+function buildStreamFilter(streamIds) {
+  if (!streamIds || streamIds.length === 0) {
     return null; // No filtering - show all streams
   }
 
   // Use OR filter for multiple stream IDs
   return {
     orGroup: {
-      expressions: PROD_STREAM_IDS.map(streamId => ({
+      expressions: streamIds.map(streamId => ({
         filter: {
           fieldName: 'streamId',
           stringFilter: {
@@ -67,6 +67,11 @@ function getProdFilter() {
       }))
     }
   };
+}
+
+// Filter to the app streams selected by APP_ENV.
+function getProdFilter(streamIds = STREAM_IDS) {
+  return buildStreamFilter(streamIds);
 }
 
 // Overview stats (last 30 days)
@@ -137,9 +142,10 @@ async function getActiveUserMetrics() {
 }
 
 // Daily active users (last 30 days)
-async function getDailyActiveUsers(days = 30) {
+async function getDailyActiveUsers(days = 30, options = {}) {
   const client = getClient();
-  const filter = getProdFilter();
+  const streamIds = options.includeWeb ? GROWTH_STREAM_IDS : STREAM_IDS;
+  const filter = getProdFilter(streamIds);
   const [response] = await client.runReport({
     property: getPropertyId(),
     dateRanges: [{ startDate: `${days}daysAgo`, endDate: 'today' }],
@@ -375,7 +381,7 @@ async function debugTest() {
     console.log('Simple query FAILED:', err.message);
   }
 
-  // Test 2: Query with streamId filter (prod only)
+  // Test 2: Query with streamId filter for the selected APP_ENV.
   console.log('=== DEBUG: Testing query with streamId filter ===');
   console.log('Filter config:', JSON.stringify(getProdFilter(), null, 2));
   try {
@@ -386,7 +392,7 @@ async function debugTest() {
       ...(filter && { dimensionFilter: filter }),
       metrics: [{ name: 'activeUsers' }]
     });
-    console.log('Filtered query SUCCESS:', response2.rows?.[0]?.metricValues[0].value, 'users (prod only)');
+    console.log('Filtered query SUCCESS:', response2.rows?.[0]?.metricValues[0].value, 'users (selected streams)');
   } catch (err) {
     console.log('Filtered query FAILED:', err.message);
   }

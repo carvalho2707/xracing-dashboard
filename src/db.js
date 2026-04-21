@@ -13,7 +13,7 @@ const connectionString = process.env.DATABASE_URL || process.env.DATABASE_PUBLIC
 const poolConfig = connectionString
   ? {
       connectionString,
-      ssl: useSSL ? { rejectUnauthorized: false } : false,
+      ssl: { rejectUnauthorized: false },
       max: isServerless ? 1 : 10,
     }
   : {

@@ -3,6 +3,12 @@
 
 const { BigQuery } = require('@google-cloud/bigquery');
 const path = require('path');
+const {
+  getAppStreamEnv,
+  getAppStreamIds,
+  getWebStreamIds,
+  getGrowthStreamIds
+} = require('./analytics-streams');
 
 let bigqueryClient = null;
 
@@ -10,6 +16,9 @@ let bigqueryClient = null;
 const GA4_PROPERTY_ID = process.env.GA4_PROPERTY_ID || '474857535';
 const GCP_PROJECT_ID = process.env.GCP_PROJECT_ID || 'xracing-912fc';
 const DATASET_ID = `analytics_${GA4_PROPERTY_ID}`;
+const APP_STREAM_IDS = getAppStreamIds();
+const WEB_STREAM_IDS = getWebStreamIds();
+const GROWTH_STREAM_IDS = getGrowthStreamIds();
 
 // Check if a table exists in BigQuery
 async function tableExists(client, tableName) {
@@ -28,6 +37,9 @@ async function tableExists(client, tableName) {
 
 function getClient() {
   if (!bigqueryClient) {
+    console.log('BigQuery app stream filter:', getAppStreamEnv(), APP_STREAM_IDS.join(', '));
+    console.log('BigQuery web stream filter:', WEB_STREAM_IDS.join(', '));
+    console.log('BigQuery growth stream filter:', GROWTH_STREAM_IDS.join(', '));
 
     // Use same credentials as GA4
     if (process.env.GA4_CREDENTIALS_BASE64) {
@@ -64,6 +76,92 @@ const getEventParam = (paramName, type = 'string') => {
   return `(SELECT ${valueField} FROM UNNEST(event_params) WHERE key = '${paramName}')`;
 };
 
+function appStreamFilter(prefix = 'AND') {
+  return APP_STREAM_IDS.length ? `${prefix} stream_id IN UNNEST(@streamIds)` : '';
+}
+
+function withAppStreamParams(params = {}) {
+  return APP_STREAM_IDS.length ? { ...params, streamIds: APP_STREAM_IDS } : params;
+}
+
+function growthStreamFilter(prefix = 'AND') {
+  return GROWTH_STREAM_IDS.length ? `${prefix} stream_id IN UNNEST(@growthStreamIds)` : '';
+}
+
+function withGrowthStreamParams(params = {}) {
+  return GROWTH_STREAM_IDS.length ? { ...params, growthStreamIds: GROWTH_STREAM_IDS } : params;
+}
+
+async function buildAppTableQuery(client, days) {
+  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const intradayTable = `events_intraday_${todaySuffix}`;
+  const hasIntraday = await tableExists(client, intradayTable);
+  const streamCondition = appStreamFilter();
+  const streamConditionOnly = appStreamFilter('WHERE');
+
+  if (days === 0) {
+    if (!hasIntraday) {
+      return null;
+    }
+    return `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
+      ${streamConditionOnly}
+    `;
+  }
+
+  const baseQuery = `
+    SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+    WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+      ${streamCondition}
+  `;
+
+  if (hasIntraday) {
+    return `
+      ${baseQuery}
+      UNION ALL
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
+      ${streamConditionOnly}
+    `;
+  }
+
+  return baseQuery;
+}
+
+async function buildGrowthTableQuery(client, days) {
+  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const intradayTable = `events_intraday_${todaySuffix}`;
+  const hasIntraday = await tableExists(client, intradayTable);
+  const streamCondition = growthStreamFilter();
+  const streamConditionOnly = growthStreamFilter('WHERE');
+
+  if (days === 0) {
+    if (!hasIntraday) {
+      return null;
+    }
+    return `
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
+      ${streamConditionOnly}
+    `;
+  }
+
+  const baseQuery = `
+    SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
+    WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+      ${streamCondition}
+  `;
+
+  if (hasIntraday) {
+    return `
+      ${baseQuery}
+      UNION ALL
+      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
+      ${streamConditionOnly}
+    `;
+  }
+
+  return baseQuery;
+}
+
 // Owner user IDs to exclude from analytics
 const OWNER_USER_IDS = [
   'hZMCPNFAZddzS7bwqgzb91VOysx2',
@@ -77,42 +175,8 @@ async function getScreenActions(days = 30, userId = null, excludeOwners = false)
 
   const userFilter = userId ? `AND user_id = @userId` : '';
   const ownerFilter = excludeOwners ? `AND user_id NOT IN UNNEST(@excludedUsers)` : '';
-
-  // For today (days=0), use intraday table; otherwise use regular events tables
-  // For days >= 1, we combine both regular and intraday tables to get complete data
-  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const intradayTable = `events_intraday_${todaySuffix}`;
-
-  // Check if intraday table exists
-  const hasIntraday = await tableExists(client, intradayTable);
-
-  let tableQuery;
-  if (days === 0) {
-    // Today only - need intraday table
-    if (!hasIntraday) {
-      // No intraday table exists - return empty results
-      return [];
-    }
-    tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
-    `;
-  } else {
-    // Historical data - optionally include intraday if it exists
-    const baseQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
-      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
-    `;
-
-    if (hasIntraday) {
-      tableQuery = `
-        ${baseQuery}
-        UNION ALL
-        SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
-      `;
-    } else {
-      tableQuery = baseQuery;
-    }
-  }
+  const tableQuery = await buildAppTableQuery(client, days);
+  if (!tableQuery) return [];
 
   const query = `
     WITH all_events AS (
@@ -133,11 +197,11 @@ async function getScreenActions(days = 30, userId = null, excludeOwners = false)
     LIMIT 2000
   `;
 
-  const params = {};
+  let params = {};
   if (userId) params.userId = userId;
   if (excludeOwners) params.excludedUsers = OWNER_USER_IDS;
-  const options = Object.keys(params).length > 0 ? { query, params } : { query };
-  const [rows] = await client.query(options);
+  params = withAppStreamParams(params);
+  const [rows] = await client.query({ query, params });
 
   // Group by screen
   const screenData = {};
@@ -212,47 +276,16 @@ async function getScreenActionDetails(screenName, days = 30, userId = null, excl
 
   const userFilter = userId ? `AND user_id = @userId` : '';
   const ownerFilter = excludeOwners ? `AND user_id NOT IN UNNEST(@excludedUsers)` : '';
-
-  // For today (days=0), use intraday table; otherwise combine regular + intraday
-  const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const intradayTable = `events_intraday_${todaySuffix}`;
-
-  // Check if intraday table exists
-  const hasIntraday = await tableExists(client, intradayTable);
-
-  let tableQuery;
-  if (days === 0) {
-    // Today only - need intraday table
-    if (!hasIntraday) {
-      // No intraday table exists - return empty results
-      return {
-        screenName,
-        totalEvents: 0,
-        totalUsers: 0,
-        screenViews: 0,
-        screenViewUsers: 0,
-        actions: []
-      };
-    }
-    tableQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
-    `;
-  } else {
-    // Historical data - optionally include intraday if it exists
-    const baseQuery = `
-      SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
-      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
-    `;
-
-    if (hasIntraday) {
-      tableQuery = `
-        ${baseQuery}
-        UNION ALL
-        SELECT * FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
-      `;
-    } else {
-      tableQuery = baseQuery;
-    }
+  const tableQuery = await buildAppTableQuery(client, days);
+  if (!tableQuery) {
+    return {
+      screenName,
+      totalEvents: 0,
+      totalUsers: 0,
+      screenViews: 0,
+      screenViewUsers: 0,
+      actions: []
+    };
   }
 
   const query = `
@@ -273,9 +306,10 @@ async function getScreenActionDetails(screenName, days = 30, userId = null, excl
     LIMIT 100
   `;
 
-  const params = { screenName };
+  let params = { screenName };
   if (userId) params.userId = userId;
   if (excludeOwners) params.excludedUsers = OWNER_USER_IDS;
+  params = withAppStreamParams(params);
   const [rows] = await client.query({ query, params });
 
   // Aggregate actions, separate screen_view
@@ -354,6 +388,7 @@ async function getUserEvents(userId, startDate, endDate) {
         SELECT event_timestamp, event_name, event_params, user_id
         FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.${intradayTable}\`
         WHERE user_id = @userId
+          ${appStreamFilter()}
       `;
     }
   }
@@ -365,6 +400,7 @@ async function getUserEvents(userId, startDate, endDate) {
       FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
       WHERE _TABLE_SUFFIX BETWEEN @startSuffix AND @endSuffix
         AND user_id = @userId
+        ${appStreamFilter()}
       ${intradayUnion}
     )
     SELECT
@@ -381,7 +417,7 @@ async function getUserEvents(userId, startDate, endDate) {
 
   const [rows] = await client.query({
     query,
-    params: { userId, startSuffix, endSuffix }
+    params: withAppStreamParams({ userId, startSuffix, endSuffix })
   });
 
   // Helper to convert params array to object
@@ -436,11 +472,6 @@ async function getUserEvents(userId, startDate, endDate) {
 
   return Object.values(eventsByDate).sort((a, b) => b.date.localeCompare(a.date));
 }
-
-// Web Analytics Stream IDs (production website only — exclude dev/staging traffic)
-// Includes old "web" stream (historical data) + new "web_prod" stream
-const WEB_STREAM_IDS = (process.env.WEB_STREAM_IDS || '14050038536')
-  .split(',').map(id => id.trim()).filter(Boolean);
 
 // ============================================
 // WEB ANALYTICS FUNCTIONS
@@ -692,12 +723,13 @@ async function getAllActionTypes(days = 30) {
       COUNT(*) as count
     FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
     WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+      ${appStreamFilter()}
       AND ${getEventParam('action_type')} IS NOT NULL
     GROUP BY action_type
     ORDER BY count DESC
   `;
 
-  const [rows] = await client.query({ query });
+  const [rows] = await client.query({ query, params: withAppStreamParams() });
   return rows.map(r => ({ actionType: r.action_type, count: parseInt(r.count) }));
 }
 
@@ -710,18 +742,27 @@ async function testConnection() {
       SELECT COUNT(*) as total_events
       FROM \`${GCP_PROJECT_ID}.${DATASET_ID}.events_*\`
       WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY))
+        ${appStreamFilter()}
     `;
-    const [rows] = await client.query({ query });
+    const [rows] = await client.query({ query, params: withAppStreamParams() });
     return {
       success: true,
       totalEvents7d: parseInt(rows[0].total_events),
-      dataset: DATASET_ID
+      dataset: DATASET_ID,
+      appStreamEnv: getAppStreamEnv(),
+      appStreamIds: APP_STREAM_IDS,
+      webStreamIds: WEB_STREAM_IDS,
+      growthStreamIds: GROWTH_STREAM_IDS
     };
   } catch (err) {
     return {
       success: false,
       error: err.message,
-      dataset: DATASET_ID
+      dataset: DATASET_ID,
+      appStreamEnv: getAppStreamEnv(),
+      appStreamIds: APP_STREAM_IDS,
+      webStreamIds: WEB_STREAM_IDS,
+      growthStreamIds: GROWTH_STREAM_IDS
     };
   }
 }
