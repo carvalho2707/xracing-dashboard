@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Feed Telemetry - xracing dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0D1117">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="xracing">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            racing: {
+              red: '#E53935',
+              dark: '#0D1117',
+              darker: '#010409',
+              card: '#161B22',
+              border: '#30363D',
+              text: '#C9D1D9',
+              muted: '#8B949E'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: linear-gradient(135deg, #0D1117 0%, #010409 100%); min-height: 100vh; }
+    .glass-card { background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(48, 54, 61, 0.5); }
+    .tier-card { background: linear-gradient(145deg, rgba(22, 27, 34, 0.9), rgba(13, 17, 23, 0.9)); border: 1px solid rgba(48, 54, 61, 0.6); }
+    .tier-header { border-bottom: 1px solid rgba(48, 54, 61, 0.5); }
+    .metric-card { background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(48, 54, 61, 0.4); }
+    .metric-highlight { background: linear-gradient(145deg, rgba(229, 57, 53, 0.15), rgba(229, 57, 53, 0.05)); border: 1px solid rgba(229, 57, 53, 0.3); }
+    .chart-container { position: relative; height: 220px; }
+    .chart-container-lg { position: relative; height: 300px; }
+    .badge { font-size: 10px; letter-spacing: 0.05em; }
+    .src-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .src-s1_follow   { background: rgba(229, 57, 53, 0.18); color: #F87171; }
+    .src-s2_track    { background: rgba(59, 130, 246, 0.18); color: #60A5FA; }
+    .src-s3_geo      { background: rgba(16, 185, 129, 0.18); color: #34D399; }
+    .src-s4_trending { background: rgba(234, 179, 8, 0.18); color: #FACC15; }
+    .src-s5_self     { background: rgba(139, 92, 246, 0.18); color: #A78BFA; }
+    .src-d1_driver   { background: rgba(236, 72, 153, 0.18); color: #F472B6; }
+    .src-d2_event    { background: rgba(14, 165, 233, 0.18); color: #38BDF8; }
+  </style>
+</head>
+<body class="font-sans text-racing-text">
+  <!-- Sidebar (this page only; other pages untouched) -->
+  <button id="sidebarToggle" class="sidebar-toggle">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+  </button>
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <a href="/"><img src="/logo_red.svg" alt="xracing" class="h-8 w-auto"></a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        <span>Home</span>
+      </a>
+      <a href="/live.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+        <span>Live</span>
+      </a>
+      <a href="/analytics.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        <span>Analytics</span>
+      </a>
+      <a href="/kpis.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <span>KPIs</span>
+      </a>
+      <a href="/feed-telemetry.html" class="active">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h16"/></svg>
+        <span>Feed Telemetry</span>
+      </a>
+      <a href="/tables.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        <span>Tables</span>
+      </a>
+      <a href="/user-timeline.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span>User Timeline</span>
+      </a>
+      <a href="/screen-analysis.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+        <span>Screen Analysis</span>
+      </a>
+      <a href="/web-analytics.html">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+        <span>Web Analytics</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">xracing dashboard</div>
+  </aside>
+
+  <div class="main-content">
+    <header class="page-header">
+      <div class="page-header-content">
+        <div class="flex items-center gap-4 flex-wrap">
+          <h1 class="page-title">Feed Telemetry</h1>
+          <select id="daysSelect" class="bg-racing-card border border-racing-border text-sm rounded-lg px-3 py-1">
+            <option value="7" selected>Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30">Last 30 days</option>
+          </select>
+          <span class="badge text-racing-muted px-2 py-1 bg-racing-card rounded uppercase">blended feed</span>
+        </div>
+        <button onclick="loadAll()" class="px-4 py-2 bg-racing-card hover:bg-racing-border text-sm rounded-lg transition-colors">Refresh</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div id="loading" class="flex items-center justify-center py-20">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-racing-red"></div>
+      </div>
+
+      <div id="dashboard" class="hidden space-y-8">
+
+        <!-- ==================== OVERVIEW ==================== -->
+        <section class="tier-card rounded-xl overflow-hidden">
+          <div class="tier-header px-4 md:px-6 py-3 md:py-4 flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2 md:gap-3">
+              <span class="badge bg-racing-red/20 text-racing-red px-2 py-1 rounded font-semibold uppercase">Overview</span>
+              <h2 class="text-base md:text-lg font-semibold text-white">Headline numbers</h2>
+            </div>
+            <span class="text-xs text-racing-muted">Baseline is zero — everything here is new data since the blended feed launched.</span>
+          </div>
+          <div class="p-4 md:p-6 grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div class="metric-highlight rounded-xl p-4">
+              <p class="text-racing-muted text-xs mb-1">Impressions</p>
+              <p id="impressions" class="text-2xl md:text-3xl font-bold text-white">-</p>
+            </div>
+            <div class="metric-card rounded-xl p-4">
+              <p class="text-racing-muted text-xs mb-1">Unique viewers</p>
+              <p id="uniqueViewers" class="text-2xl md:text-3xl font-bold text-white">-</p>
+            </div>
+            <div class="metric-card rounded-xl p-4">
+              <p class="text-racing-muted text-xs mb-1">D1 impressions</p>
+              <p id="d1Impressions" class="text-2xl md:text-3xl font-bold text-white">-</p>
+              <p class="text-[10px] text-racing-muted mt-1">driver-suggestion cards shown</p>
+            </div>
+            <div class="metric-card rounded-xl p-4">
+              <p class="text-racing-muted text-xs mb-1">D1 dismissal rate</p>
+              <p id="d1DismissRate" class="text-2xl md:text-3xl font-bold text-white">-</p>
+              <p class="text-[10px] text-racing-muted mt-1">target &lt; 40%</p>
+            </div>
+            <div class="metric-card rounded-xl p-4">
+              <p class="text-racing-muted text-xs mb-1">D1 follow-through (24h)</p>
+              <p id="d1FollowRate" class="text-2xl md:text-3xl font-bold text-white">-</p>
+              <p class="text-[10px] text-racing-muted mt-1">target ≥ 5%</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== SOURCE MIX + DAILY ==================== -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="glass-card rounded-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-medium text-white">Impressions by source</h3>
+              <span class="text-xs text-racing-muted">share of total</span>
+            </div>
+            <div class="chart-container"><canvas id="sourceChart"></canvas></div>
+          </div>
+          <div class="glass-card rounded-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-medium text-white">Daily impressions</h3>
+              <span class="text-xs text-racing-muted">trend</span>
+            </div>
+            <div class="chart-container"><canvas id="dailyChart"></canvas></div>
+          </div>
+        </section>
+
+        <!-- ==================== SOURCE PERFORMANCE TABLE ==================== -->
+        <section class="tier-card rounded-xl overflow-hidden">
+          <div class="tier-header px-4 md:px-6 py-3 md:py-4 flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2 md:gap-3">
+              <span class="badge bg-blue-500/20 text-blue-400 px-2 py-1 rounded font-semibold uppercase">Sources</span>
+              <h2 class="text-base md:text-lg font-semibold text-white">Per-source performance</h2>
+            </div>
+            <span class="text-xs text-racing-muted">
+              CTR = recorded interactions ÷ impressions. Today interactions are mostly D1 dismissals;
+              once like/comment/follow routes log <code class="text-white">source=feed</code> this becomes real engagement.
+            </span>
+          </div>
+          <div class="p-4 md:p-6 overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="text-racing-muted text-xs uppercase tracking-wider">
+                  <th class="text-left py-2 pr-4">Source</th>
+                  <th class="text-right py-2 pr-4">Impressions</th>
+                  <th class="text-right py-2 pr-4">Interactions</th>
+                  <th class="text-right py-2">CTR</th>
+                </tr>
+              </thead>
+              <tbody id="sourcePerfBody" class="divide-y divide-racing-border/40">
+                <tr><td colspan="4" class="text-center py-6 text-racing-muted">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ==================== DISCOVERY (D1) ==================== -->
+        <section class="tier-card rounded-xl overflow-hidden">
+          <div class="tier-header px-4 md:px-6 py-3 md:py-4 flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2 md:gap-3">
+              <span class="badge bg-pink-500/20 text-pink-400 px-2 py-1 rounded font-semibold uppercase">Discovery</span>
+              <h2 class="text-base md:text-lg font-semibold text-white">D1 driver suggestions</h2>
+            </div>
+            <span class="text-xs text-racing-muted">Follow-through is derived: impression + follow within 24h. Dismissals are exact.</span>
+          </div>
+          <div class="p-4 md:p-6">
+            <div class="chart-container-lg"><canvas id="discoveryChart"></canvas></div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/shared.js"></script>
+  <script src="/js/feed-telemetry.js"></script>
+</body>
+</html>

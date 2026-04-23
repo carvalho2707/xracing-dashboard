@@ -971,7 +971,193 @@ const queries = {
       };
     });
     return recordingMap;
-  }
+  },
+
+  // ============================================
+  // Feed Telemetry (blended feed)
+  // Read from: feed_impressions, feed_interactions,
+  //            feed_discovery_dismissals, user_relationships
+  // ============================================
+
+  // Headline numbers for the Feed Telemetry page.
+  // - Impressions, unique viewers, dismissals in the window
+  // - Approximate D1 follow-through: a driver_suggestion impression is "converted"
+  //   if the viewer started following that driver within 24h of seeing it.
+  async getFeedTelemetryOverview(days = 7) {
+    const result = await db.query(
+      `
+      WITH window_params AS (
+        SELECT NOW() - ($1::int || ' days')::interval AS since
+      ),
+      impr AS (
+        SELECT * FROM feed_impressions, window_params WHERE shown_at >= since
+      ),
+      dsi AS (
+        SELECT * FROM impr WHERE item_type = 'driver_suggestion'
+      ),
+      follow_through AS (
+        SELECT COUNT(*) AS converted
+        FROM dsi i
+        JOIN user_relationships ur
+          ON ur.user_id = i.user_id
+         AND ur.target_user_id = i.item_id
+         AND ur.relationship_type = 'following'
+         AND ur.status = 'active'
+         AND ur.created_at BETWEEN i.shown_at AND i.shown_at + INTERVAL '24 hours'
+      )
+      SELECT
+        (SELECT COUNT(*) FROM impr)                                           AS impressions,
+        (SELECT COUNT(DISTINCT user_id) FROM impr)                            AS unique_viewers,
+        (SELECT COUNT(*) FROM dsi)                                            AS d1_impressions,
+        (SELECT COUNT(*) FROM feed_discovery_dismissals, window_params
+           WHERE dismissed_at >= since AND suggestion_type = 'driver_suggestion') AS d1_dismissals,
+        (SELECT converted FROM follow_through)                                AS d1_follow_through,
+        CASE WHEN (SELECT COUNT(*) FROM dsi) > 0
+             THEN ROUND(
+               100.0 * (SELECT COUNT(*) FROM feed_discovery_dismissals, window_params
+                         WHERE dismissed_at >= since AND suggestion_type = 'driver_suggestion')
+               / (SELECT COUNT(*) FROM dsi), 1)
+             ELSE NULL END                                                    AS d1_dismissal_rate,
+        CASE WHEN (SELECT COUNT(*) FROM dsi) > 0
+             THEN ROUND(
+               100.0 * (SELECT converted FROM follow_through)
+               / (SELECT COUNT(*) FROM dsi), 1)
+             ELSE NULL END                                                    AS d1_follow_through_rate
+      `,
+      [days],
+    );
+    return result.rows[0];
+  },
+
+  // Share of impressions per candidate source (stacked bar / pie input).
+  async getFeedImpressionsBySource(days = 7) {
+    const result = await db.query(
+      `
+      SELECT source, COUNT(*)::bigint AS impressions
+      FROM feed_impressions
+      WHERE shown_at >= NOW() - ($1::int || ' days')::interval
+      GROUP BY source
+      ORDER BY impressions DESC
+      `,
+      [days],
+    );
+    return result.rows;
+  },
+
+  // Impressions per day (trend). Returns zero-filled days for charting.
+  async getFeedImpressionsDaily(days = 14) {
+    const result = await db.query(
+      `
+      WITH days AS (
+        SELECT generate_series(
+          date_trunc('day', NOW()) - ($1::int - 1 || ' days')::interval,
+          date_trunc('day', NOW()),
+          '1 day'
+        )::date AS day
+      ),
+      per_day AS (
+        SELECT date_trunc('day', shown_at)::date AS day, COUNT(*) AS impressions
+        FROM feed_impressions
+        WHERE shown_at >= NOW() - ($1::int || ' days')::interval
+        GROUP BY 1
+      )
+      SELECT d.day, COALESCE(p.impressions, 0)::bigint AS impressions
+      FROM days d LEFT JOIN per_day p USING (day)
+      ORDER BY d.day
+      `,
+      [days],
+    );
+    return result.rows;
+  },
+
+  // CTR-ish table. "Interactions" is whatever we currently write to feed_interactions
+  // (right now: mostly dismissals). Once like/comment/follow routes accept a
+  // source=feed hint this becomes a real engagement signal.
+  async getFeedSourcePerformance(days = 7) {
+    const result = await db.query(
+      `
+      WITH impr AS (
+        SELECT source, item_type, item_id, COUNT(*) AS impressions
+        FROM feed_impressions
+        WHERE shown_at >= NOW() - ($1::int || ' days')::interval
+        GROUP BY source, item_type, item_id
+      ),
+      inter AS (
+        SELECT item_type, item_id, COUNT(*) AS interactions
+        FROM feed_interactions
+        WHERE occurred_at >= NOW() - ($1::int || ' days')::interval
+        GROUP BY item_type, item_id
+      )
+      SELECT i.source,
+             SUM(i.impressions)::bigint AS impressions,
+             COALESCE(SUM(x.interactions), 0)::bigint AS interactions,
+             CASE WHEN SUM(i.impressions) > 0
+                  THEN ROUND(100.0 * COALESCE(SUM(x.interactions), 0) / SUM(i.impressions), 2)
+                  ELSE 0 END AS ctr_pct
+      FROM impr i
+      LEFT JOIN inter x ON x.item_type = i.item_type AND x.item_id = i.item_id
+      GROUP BY i.source
+      ORDER BY impressions DESC
+      `,
+      [days],
+    );
+    return result.rows;
+  },
+
+  // Approximate follow-through by day for the D1 card. "Shown" = D1 impressions that day.
+  // "Converted" = D1 impressions whose viewer followed the target within 24h of the impression.
+  async getFeedDiscoveryFollowThroughDaily(days = 14) {
+    const result = await db.query(
+      `
+      WITH days AS (
+        SELECT generate_series(
+          date_trunc('day', NOW()) - ($1::int - 1 || ' days')::interval,
+          date_trunc('day', NOW()),
+          '1 day'
+        )::date AS day
+      ),
+      dsi AS (
+        SELECT date_trunc('day', i.shown_at)::date AS day,
+               i.user_id, i.item_id, i.shown_at
+        FROM feed_impressions i
+        WHERE i.item_type = 'driver_suggestion'
+          AND i.shown_at >= NOW() - ($1::int || ' days')::interval
+      ),
+      shown AS (
+        SELECT day, COUNT(*) AS shown FROM dsi GROUP BY day
+      ),
+      converted AS (
+        SELECT d.day, COUNT(*) AS converted
+        FROM dsi d
+        JOIN user_relationships ur
+          ON ur.user_id = d.user_id
+         AND ur.target_user_id = d.item_id
+         AND ur.relationship_type = 'following'
+         AND ur.status = 'active'
+         AND ur.created_at BETWEEN d.shown_at AND d.shown_at + INTERVAL '24 hours'
+        GROUP BY d.day
+      ),
+      dismissed AS (
+        SELECT date_trunc('day', dismissed_at)::date AS day, COUNT(*) AS dismissed
+        FROM feed_discovery_dismissals
+        WHERE suggestion_type = 'driver_suggestion'
+          AND dismissed_at >= NOW() - ($1::int || ' days')::interval
+        GROUP BY 1
+      )
+      SELECT d.day,
+             COALESCE(s.shown, 0)::bigint     AS shown,
+             COALESCE(c.converted, 0)::bigint AS converted,
+             COALESCE(x.dismissed, 0)::bigint AS dismissed
+      FROM days d
+      LEFT JOIN shown     s USING (day)
+      LEFT JOIN converted c USING (day)
+      LEFT JOIN dismissed x USING (day)
+      ORDER BY d.day
+      `,
+      [days],
+    );
+    return result.rows;
+  },
 };
 
 module.exports = queries;

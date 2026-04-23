@@ -819,6 +819,65 @@ app.get('/api/analytics/feature-adoption', async (req, res) => {
   }
 });
 
+// ============================================
+// Feed Telemetry API Routes (blended feed)
+// ============================================
+
+app.get('/api/feed-telemetry/overview', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 7;
+    const data = await queries.getFeedTelemetryOverview(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching feed telemetry overview:', error);
+    res.status(500).json({ error: 'Failed to fetch feed telemetry overview' });
+  }
+});
+
+app.get('/api/feed-telemetry/by-source', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 7;
+    const data = await queries.getFeedImpressionsBySource(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching feed impressions by source:', error);
+    res.status(500).json({ error: 'Failed to fetch feed impressions by source' });
+  }
+});
+
+app.get('/api/feed-telemetry/daily', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 14;
+    const data = await queries.getFeedImpressionsDaily(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching feed impressions daily:', error);
+    res.status(500).json({ error: 'Failed to fetch feed impressions daily' });
+  }
+});
+
+app.get('/api/feed-telemetry/source-performance', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 7;
+    const data = await queries.getFeedSourcePerformance(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching feed source performance:', error);
+    res.status(500).json({ error: 'Failed to fetch feed source performance' });
+  }
+});
+
+app.get('/api/feed-telemetry/discovery-daily', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 14;
+    const data = await queries.getFeedDiscoveryFollowThroughDaily(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching feed discovery daily:', error);
+    res.status(500).json({ error: 'Failed to fetch feed discovery daily' });
+  }
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
