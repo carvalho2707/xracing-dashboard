@@ -1158,6 +1158,379 @@ const queries = {
     );
     return result.rows;
   },
+
+  // ============================================
+  // INSIGHTS - Deeper product metrics
+  // ============================================
+
+  // Signup → first recording funnel (DB-side; GA4 install count layered on by server route)
+  async getSignupFunnel(days = 30) {
+    const result = await db.query(
+      `
+      WITH cohort AS (
+        SELECT
+          u.id,
+          u.created_at,
+          MIN(r.created_at) FILTER (WHERE r.deleted_at IS NULL) AS first_recording_at
+        FROM users u
+        LEFT JOIN recordings r ON r.driver_id = u.id
+        WHERE u.created_at >= NOW() - ($1::int || ' days')::interval
+        GROUP BY u.id, u.created_at
+      )
+      SELECT
+        COUNT(*)::int AS signups,
+        COUNT(*) FILTER (WHERE first_recording_at IS NOT NULL)::int AS recorded_any,
+        COUNT(*) FILTER (
+          WHERE first_recording_at IS NOT NULL
+            AND first_recording_at <= created_at + INTERVAL '7 days'
+        )::int AS recorded_within_7d,
+        COUNT(*) FILTER (
+          WHERE first_recording_at IS NOT NULL
+            AND first_recording_at <= created_at + INTERVAL '1 day'
+        )::int AS recorded_within_1d
+      FROM cohort
+      `,
+      [days],
+    );
+    return result.rows[0];
+  },
+
+  // Time-to-second recording: distribution buckets + median.
+  async getTimeToSecondRecording() {
+    const result = await db.query(`
+      WITH ranked AS (
+        SELECT
+          driver_id,
+          created_at,
+          ROW_NUMBER() OVER (PARTITION BY driver_id ORDER BY created_at) AS rn
+        FROM recordings
+        WHERE deleted_at IS NULL
+      ),
+      pairs AS (
+        SELECT
+          r1.driver_id,
+          EXTRACT(EPOCH FROM (r2.created_at - r1.created_at)) / 86400.0 AS days_between
+        FROM ranked r1
+        JOIN ranked r2 ON r2.driver_id = r1.driver_id AND r2.rn = 2
+        WHERE r1.rn = 1
+      ),
+      first_only AS (
+        SELECT COUNT(*)::int AS n
+        FROM (SELECT driver_id, COUNT(*) AS c FROM ranked GROUP BY driver_id) t
+        WHERE t.c = 1
+      )
+      SELECT
+        (SELECT COUNT(*) FROM pairs)::int AS users_with_2plus,
+        (SELECT n FROM first_only)::int AS users_with_only_1,
+        ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY days_between)::numeric, 2) AS median_days,
+        ROUND(AVG(days_between)::numeric, 2) AS avg_days,
+        COUNT(*) FILTER (WHERE days_between <= 1)::int AS within_1d,
+        COUNT(*) FILTER (WHERE days_between > 1 AND days_between <= 7)::int AS within_7d,
+        COUNT(*) FILTER (WHERE days_between > 7 AND days_between <= 30)::int AS within_30d,
+        COUNT(*) FILTER (WHERE days_between > 30)::int AS over_30d
+      FROM pairs
+    `);
+    return result.rows[0];
+  },
+
+  // Feature adoption → 30d retention lift.
+  // For each feature, compute retention rate (≥1 recording in last 30d) for adopters vs non-adopters.
+  async getFeatureRetentionLift() {
+    const result = await db.query(`
+      WITH active_30d AS (
+        SELECT DISTINCT driver_id AS user_id
+        FROM recordings
+        WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL '30 days'
+      ),
+      flags AS (
+        SELECT
+          u.id AS user_id,
+          (u.id IN (SELECT user_id FROM active_30d)) AS retained,
+          (u.id IN (SELECT DISTINCT creator_id FROM tracks WHERE creator_id IS NOT NULL)) AS f_track,
+          (u.id IN (SELECT DISTINCT user_id FROM likes)) AS f_like,
+          (u.id IN (SELECT DISTINCT user_id FROM comments WHERE deleted = false)) AS f_comment,
+          (u.id IN (SELECT DISTINCT user_id FROM user_relationships
+                    WHERE relationship_type = 'following' AND status = 'active')) AS f_follow,
+          (u.id IN (SELECT DISTINCT driver_id FROM media WHERE driver_id IS NOT NULL)) AS f_media
+        FROM users u
+        WHERE u.created_at <= NOW() - INTERVAL '30 days'
+      )
+      SELECT feature, adopters, retained_adopters, retention_adopters, non_adopters, retained_non, retention_non,
+             (retention_adopters - retention_non) AS lift_pts
+      FROM (
+        SELECT 'Track creator' AS feature,
+               COUNT(*) FILTER (WHERE f_track)::int AS adopters,
+               COUNT(*) FILTER (WHERE f_track AND retained)::int AS retained_adopters,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE f_track AND retained)::numeric
+                       / NULLIF(COUNT(*) FILTER (WHERE f_track), 0), 1) AS retention_adopters,
+               COUNT(*) FILTER (WHERE NOT f_track)::int AS non_adopters,
+               COUNT(*) FILTER (WHERE NOT f_track AND retained)::int AS retained_non,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE NOT f_track AND retained)::numeric
+                       / NULLIF(COUNT(*) FILTER (WHERE NOT f_track), 0), 1) AS retention_non
+        FROM flags
+        UNION ALL
+        SELECT 'Liked content', COUNT(*) FILTER (WHERE f_like)::int,
+               COUNT(*) FILTER (WHERE f_like AND retained)::int,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE f_like AND retained)::numeric / NULLIF(COUNT(*) FILTER (WHERE f_like), 0), 1),
+               COUNT(*) FILTER (WHERE NOT f_like)::int,
+               COUNT(*) FILTER (WHERE NOT f_like AND retained)::int,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE NOT f_like AND retained)::numeric / NULLIF(COUNT(*) FILTER (WHERE NOT f_like), 0), 1)
+        FROM flags
+        UNION ALL
+        SELECT 'Commented', COUNT(*) FILTER (WHERE f_comment)::int,
+               COUNT(*) FILTER (WHERE f_comment AND retained)::int,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE f_comment AND retained)::numeric / NULLIF(COUNT(*) FILTER (WHERE f_comment), 0), 1),
+               COUNT(*) FILTER (WHERE NOT f_comment)::int,
+               COUNT(*) FILTER (WHERE NOT f_comment AND retained)::int,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE NOT f_comment AND retained)::numeric / NULLIF(COUNT(*) FILTER (WHERE NOT f_comment), 0), 1)
+        FROM flags
+        UNION ALL
+        SELECT 'Follows others', COUNT(*) FILTER (WHERE f_follow)::int,
+               COUNT(*) FILTER (WHERE f_follow AND retained)::int,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE f_follow AND retained)::numeric / NULLIF(COUNT(*) FILTER (WHERE f_follow), 0), 1),
+               COUNT(*) FILTER (WHERE NOT f_follow)::int,
+               COUNT(*) FILTER (WHERE NOT f_follow AND retained)::int,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE NOT f_follow AND retained)::numeric / NULLIF(COUNT(*) FILTER (WHERE NOT f_follow), 0), 1)
+        FROM flags
+        UNION ALL
+        SELECT 'Uploaded media', COUNT(*) FILTER (WHERE f_media)::int,
+               COUNT(*) FILTER (WHERE f_media AND retained)::int,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE f_media AND retained)::numeric / NULLIF(COUNT(*) FILTER (WHERE f_media), 0), 1),
+               COUNT(*) FILTER (WHERE NOT f_media)::int,
+               COUNT(*) FILTER (WHERE NOT f_media AND retained)::int,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE NOT f_media AND retained)::numeric / NULLIF(COUNT(*) FILTER (WHERE NOT f_media), 0), 1)
+        FROM flags
+      ) summary
+      ORDER BY lift_pts DESC NULLS LAST
+    `);
+    return result.rows;
+  },
+
+  // View concentration: % of total views captured by top 1%, 10%, 25%, 50% of recordings.
+  async getViewConcentration() {
+    const result = await db.query(`
+      WITH ranked AS (
+        SELECT
+          total_views,
+          ROW_NUMBER() OVER (ORDER BY total_views DESC) AS rn,
+          COUNT(*) OVER () AS total_count,
+          SUM(total_views) OVER () AS total_views_sum
+        FROM recordings
+        WHERE deleted_at IS NULL AND total_views > 0
+      )
+      SELECT
+        MAX(total_count)::int AS recordings_with_views,
+        MAX(total_views_sum)::bigint AS total_views,
+        ROUND(100.0 * SUM(total_views) FILTER (WHERE rn <= GREATEST(1, total_count * 0.01))::numeric
+                / NULLIF(MAX(total_views_sum), 0), 1) AS top_1_pct_share,
+        ROUND(100.0 * SUM(total_views) FILTER (WHERE rn <= GREATEST(1, total_count * 0.10))::numeric
+                / NULLIF(MAX(total_views_sum), 0), 1) AS top_10_pct_share,
+        ROUND(100.0 * SUM(total_views) FILTER (WHERE rn <= GREATEST(1, total_count * 0.25))::numeric
+                / NULLIF(MAX(total_views_sum), 0), 1) AS top_25_pct_share,
+        ROUND(100.0 * SUM(total_views) FILTER (WHERE rn <= GREATEST(1, total_count * 0.50))::numeric
+                / NULLIF(MAX(total_views_sum), 0), 1) AS top_50_pct_share
+      FROM ranked
+    `);
+    return result.rows[0];
+  },
+
+  // Likes-per-view by month (last 12 months) — engagement quality trend.
+  async getLikesPerViewTrend() {
+    const result = await db.query(`
+      SELECT
+        DATE_TRUNC('month', created_at) AS month,
+        SUM(like_count)::bigint AS likes,
+        SUM(total_views)::bigint AS views,
+        CASE WHEN SUM(total_views) > 0
+             THEN ROUND(100.0 * SUM(like_count)::numeric / SUM(total_views), 2)
+             ELSE 0 END AS likes_per_100_views
+      FROM recordings
+      WHERE deleted_at IS NULL
+        AND created_at >= NOW() - INTERVAL '12 months'
+      GROUP BY DATE_TRUNC('month', created_at)
+      ORDER BY month
+    `);
+    return result.rows;
+  },
+
+  // Top-tracks concentration: % of recordings on top 20% / top 10 tracks.
+  async getTrackConcentration() {
+    const result = await db.query(`
+      WITH track_recs AS (
+        SELECT track_id, COUNT(*) AS rec_count
+        FROM recordings
+        WHERE deleted_at IS NULL AND track_id IS NOT NULL
+        GROUP BY track_id
+      ),
+      ranked AS (
+        SELECT
+          rec_count,
+          ROW_NUMBER() OVER (ORDER BY rec_count DESC) AS rn,
+          COUNT(*) OVER () AS total_tracks,
+          SUM(rec_count) OVER () AS total_recs
+        FROM track_recs
+      )
+      SELECT
+        MAX(total_tracks)::int AS active_tracks,
+        MAX(total_recs)::bigint AS total_track_recordings,
+        ROUND(100.0 * SUM(rec_count) FILTER (WHERE rn <= GREATEST(1, total_tracks * 0.20))::numeric
+                / NULLIF(MAX(total_recs), 0), 1) AS top_20_pct_share,
+        ROUND(100.0 * SUM(rec_count) FILTER (WHERE rn <= 10)::numeric
+                / NULLIF(MAX(total_recs), 0), 1) AS top_10_share,
+        ROUND(100.0 * SUM(rec_count) FILTER (WHERE rn <= 1)::numeric
+                / NULLIF(MAX(total_recs), 0), 1) AS top_1_share
+      FROM ranked
+    `);
+    return result.rows[0];
+  },
+
+  // Views-per-follower (creator amplification). Min thresholds to filter noise.
+  async getCreatorAmplification(limit = 20) {
+    const result = await db.query(
+      `
+      WITH rec_stats AS (
+        SELECT
+          driver_id,
+          COUNT(*) AS recordings,
+          SUM(total_views)::bigint AS total_views
+        FROM recordings
+        WHERE deleted_at IS NULL
+        GROUP BY driver_id
+      )
+      SELECT
+        u.id,
+        u.username,
+        u.first_name,
+        u.last_name,
+        u.follower_count,
+        rs.recordings,
+        rs.total_views,
+        ROUND(rs.total_views::numeric / NULLIF(u.follower_count, 0), 2) AS views_per_follower
+      FROM users u
+      JOIN rec_stats rs ON rs.driver_id = u.id
+      WHERE u.follower_count >= 5
+        AND rs.recordings >= 3
+        AND rs.total_views > 0
+      ORDER BY views_per_follower DESC NULLS LAST
+      LIMIT $1
+      `,
+      [limit],
+    );
+    return result.rows;
+  },
+
+  // Reach split: recording impressions from follow-graph (s1, s5) vs discovery (s2/s3/s4) vs driver/event suggestions.
+  async getFeedReachSplit(days = 7) {
+    const result = await db.query(
+      `
+      SELECT
+        CASE
+          WHEN source IN ('s1_follow', 's5_self') THEN 'Follow graph'
+          WHEN source IN ('s2_track', 's3_geo', 's4_trending') THEN 'Discovery'
+          WHEN source IN ('d1_driver', 'd2_event') THEN 'Suggestions'
+          ELSE 'Other'
+        END AS bucket,
+        source,
+        COUNT(*)::bigint AS impressions
+      FROM feed_impressions
+      WHERE shown_at >= NOW() - ($1::int || ' days')::interval
+      GROUP BY bucket, source
+      ORDER BY bucket, impressions DESC
+      `,
+      [days],
+    );
+    return result.rows;
+  },
+
+  // Geographic opportunity: per-country drivers, recordings, recordings/driver.
+  async getGeoOpportunity(limit = 25) {
+    const result = await db.query(
+      `
+      WITH country_users AS (
+        -- Use recording country as proxy for driver country
+        SELECT location_country AS country, COUNT(DISTINCT driver_id) AS unique_drivers
+        FROM recordings
+        WHERE deleted_at IS NULL AND location_country IS NOT NULL
+        GROUP BY location_country
+      ),
+      country_recs AS (
+        SELECT location_country AS country, COUNT(*) AS recordings
+        FROM recordings
+        WHERE deleted_at IS NULL AND location_country IS NOT NULL
+        GROUP BY location_country
+      ),
+      country_recent AS (
+        SELECT location_country AS country, COUNT(*) AS recordings_30d
+        FROM recordings
+        WHERE deleted_at IS NULL
+          AND location_country IS NOT NULL
+          AND created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY location_country
+      )
+      SELECT
+        cu.country,
+        cu.unique_drivers::int,
+        cr.recordings::int,
+        COALESCE(cnt.recordings_30d, 0)::int AS recordings_30d,
+        ROUND(cr.recordings::numeric / NULLIF(cu.unique_drivers, 0), 2) AS recordings_per_driver
+      FROM country_users cu
+      JOIN country_recs cr USING (country)
+      LEFT JOIN country_recent cnt USING (country)
+      WHERE cu.unique_drivers >= 3
+      ORDER BY cu.unique_drivers DESC
+      LIMIT $1
+      `,
+      [limit],
+    );
+    return result.rows;
+  },
+
+  // Creator PMF: % of recordings that get ≥1 like or comment within 7 days.
+  // Looks at recordings created at least 7 days ago.
+  async getCreatorPMF(days = 90) {
+    const result = await db.query(
+      `
+      WITH cohort AS (
+        SELECT id, driver_id, created_at, like_count, comment_count
+        FROM recordings
+        WHERE deleted_at IS NULL
+          AND created_at >= NOW() - ($1::int || ' days')::interval
+          AND created_at <= NOW() - INTERVAL '7 days'
+      ),
+      engaged AS (
+        SELECT
+          c.id,
+          c.driver_id,
+          (
+            EXISTS (
+              SELECT 1 FROM likes l
+              WHERE l.entity_type = 'recording' AND l.entity_id = c.id
+                AND l.created_at <= c.created_at + INTERVAL '7 days'
+            )
+            OR EXISTS (
+              SELECT 1 FROM comments cm
+              WHERE cm.entity_type = 'recording' AND cm.entity_id = c.id
+                AND cm.deleted = false
+                AND cm.created_at <= c.created_at + INTERVAL '7 days'
+            )
+          ) AS got_engagement
+        FROM cohort c
+      )
+      SELECT
+        COUNT(*)::int AS recordings,
+        COUNT(*) FILTER (WHERE got_engagement)::int AS engaged_recordings,
+        ROUND(100.0 * COUNT(*) FILTER (WHERE got_engagement)::numeric
+                / NULLIF(COUNT(*), 0), 1) AS pct_recordings_engaged,
+        COUNT(DISTINCT driver_id)::int AS creators,
+        COUNT(DISTINCT driver_id) FILTER (WHERE got_engagement)::int AS creators_with_any_engagement,
+        ROUND(100.0 * COUNT(DISTINCT driver_id) FILTER (WHERE got_engagement)::numeric
+                / NULLIF(COUNT(DISTINCT driver_id), 0), 1) AS pct_creators_engaged
+      FROM engaged
+      `,
+      [days],
+    );
+    return result.rows[0];
+  },
 };
 
 module.exports = queries;

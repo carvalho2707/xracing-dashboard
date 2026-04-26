@@ -878,6 +878,112 @@ app.get('/api/feed-telemetry/discovery-daily', async (req, res) => {
   }
 });
 
+// ============================================
+// Insights API Routes (deeper product metrics)
+// ============================================
+
+app.get('/api/insights/signup-funnel', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const dbFunnel = await queries.getSignupFunnel(days);
+    let acquisition = { first_open: 0, sign_up: 0 };
+    try {
+      acquisition = await bigquery.getAcquisitionCounts(days);
+    } catch (e) {
+      console.warn('signup-funnel: GA4 acquisition counts unavailable:', e.message);
+    }
+    res.json({ days, ...acquisition, ...dbFunnel });
+  } catch (error) {
+    console.error('Error fetching signup funnel:', error);
+    res.status(500).json({ error: 'Failed to fetch signup funnel' });
+  }
+});
+
+app.get('/api/insights/time-to-second-recording', async (req, res) => {
+  try {
+    res.json(await queries.getTimeToSecondRecording());
+  } catch (error) {
+    console.error('Error fetching TTSR:', error);
+    res.status(500).json({ error: 'Failed to fetch TTSR' });
+  }
+});
+
+app.get('/api/insights/feature-retention-lift', async (req, res) => {
+  try {
+    res.json(await queries.getFeatureRetentionLift());
+  } catch (error) {
+    console.error('Error fetching feature retention lift:', error);
+    res.status(500).json({ error: 'Failed to fetch feature retention lift' });
+  }
+});
+
+app.get('/api/insights/view-concentration', async (req, res) => {
+  try {
+    res.json(await queries.getViewConcentration());
+  } catch (error) {
+    console.error('Error fetching view concentration:', error);
+    res.status(500).json({ error: 'Failed to fetch view concentration' });
+  }
+});
+
+app.get('/api/insights/likes-per-view', async (req, res) => {
+  try {
+    res.json(await queries.getLikesPerViewTrend());
+  } catch (error) {
+    console.error('Error fetching likes-per-view trend:', error);
+    res.status(500).json({ error: 'Failed to fetch likes-per-view trend' });
+  }
+});
+
+app.get('/api/insights/track-concentration', async (req, res) => {
+  try {
+    res.json(await queries.getTrackConcentration());
+  } catch (error) {
+    console.error('Error fetching track concentration:', error);
+    res.status(500).json({ error: 'Failed to fetch track concentration' });
+  }
+});
+
+app.get('/api/insights/creator-amplification', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 20;
+    res.json(await queries.getCreatorAmplification(limit));
+  } catch (error) {
+    console.error('Error fetching creator amplification:', error);
+    res.status(500).json({ error: 'Failed to fetch creator amplification' });
+  }
+});
+
+app.get('/api/insights/feed-reach-split', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 7;
+    res.json(await queries.getFeedReachSplit(days));
+  } catch (error) {
+    console.error('Error fetching feed reach split:', error);
+    res.status(500).json({ error: 'Failed to fetch feed reach split' });
+  }
+});
+
+app.get('/api/insights/geo-opportunity', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 25;
+    res.json(await queries.getGeoOpportunity(limit));
+  } catch (error) {
+    console.error('Error fetching geo opportunity:', error);
+    res.status(500).json({ error: 'Failed to fetch geo opportunity' });
+  }
+});
+
+app.get('/api/insights/creator-pmf', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 90;
+    res.json(await queries.getCreatorPMF(days));
+  } catch (error) {
+    console.error('Error fetching creator PMF:', error);
+    res.status(500).json({ error: 'Failed to fetch creator PMF' });
+  }
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

@@ -1026,12 +1026,41 @@ async function getWebDevices(days = 30) {
   };
 }
 
+// Counts of first_open and sign_up events from the app stream over the last N days.
+// Used to build a top-of-funnel view (install → signup → activation) when joined to DB data.
+async function getAcquisitionCounts(days = 30) {
+  const client = getClient();
+  const tableQuery = await buildAppTableQuery(client, days);
+  if (!tableQuery) return { first_open: 0, sign_up: 0 };
+
+  const query = `
+    WITH all_events AS (
+      ${tableQuery}
+    )
+    SELECT
+      COUNTIF(event_name = 'first_open') AS first_open,
+      COUNTIF(event_name = 'sign_up') AS sign_up
+    FROM all_events
+  `;
+
+  const [rows] = await client.query({
+    query,
+    params: withAppStreamParams({})
+  });
+  const r = rows[0] || {};
+  return {
+    first_open: parseInt(r.first_open) || 0,
+    sign_up: parseInt(r.sign_up) || 0
+  };
+}
+
 module.exports = {
   getScreenActions,
   getScreenActionDetails,
   getUserEvents,
   getAllActionTypes,
   testConnection,
+  getAcquisitionCounts,
   // Web analytics
   getWebOverview,
   getWebPages,
