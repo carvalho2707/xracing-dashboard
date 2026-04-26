@@ -188,7 +188,6 @@ async function loadAll() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  if (typeof initSidebar === 'function') initSidebar();
   document.getElementById('daysSelect').addEventListener('change', loadAll);
   loadAll();
 });
