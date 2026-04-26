@@ -1054,6 +1054,92 @@ async function getAcquisitionCounts(days = 30) {
   };
 }
 
+// recording_poll_failed breakdown by error_type / poll_result.
+// Surfaces *why* recordings end up with validation_status != 0 in Postgres.
+// Event fires from PollRecordingStatusUseCase.kt:110 in the mobile client.
+async function getRecordingValidationFailures(days = 30) {
+  const client = getClient();
+  const tableQuery = await buildAppTableQuery(client, days);
+  if (!tableQuery) return { totalFailed: 0, totalPolls: 0, byErrorType: [], byPollResult: [] };
+
+  const query = `
+    WITH polls AS (
+      SELECT
+        event_name,
+        (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'poll_result') AS poll_result,
+        (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'error_type') AS error_type,
+        user_pseudo_id
+      FROM (${tableQuery})
+      WHERE event_name IN ('recording_poll_failed', 'recording_poll_completed')
+    )
+    SELECT
+      COUNTIF(event_name = 'recording_poll_failed') AS failed_count,
+      COUNT(DISTINCT IF(event_name = 'recording_poll_failed', user_pseudo_id, NULL)) AS failed_users,
+      COUNT(*) AS total_polls,
+      COUNT(DISTINCT user_pseudo_id) AS total_users
+    FROM polls
+  `;
+  const byErrorTypeQuery = `
+    WITH polls AS (
+      SELECT
+        (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'error_type') AS error_type,
+        user_pseudo_id
+      FROM (${tableQuery})
+      WHERE event_name = 'recording_poll_failed'
+    )
+    SELECT
+      COALESCE(error_type, '(null)') AS error_type,
+      COUNT(*) AS events,
+      COUNT(DISTINCT user_pseudo_id) AS users
+    FROM polls
+    GROUP BY error_type
+    ORDER BY events DESC
+    LIMIT 25
+  `;
+  const byPollResultQuery = `
+    WITH polls AS (
+      SELECT
+        (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'poll_result') AS poll_result,
+        user_pseudo_id
+      FROM (${tableQuery})
+      WHERE event_name = 'recording_poll_failed'
+    )
+    SELECT
+      COALESCE(poll_result, '(null)') AS poll_result,
+      COUNT(*) AS events,
+      COUNT(DISTINCT user_pseudo_id) AS users
+    FROM polls
+    GROUP BY poll_result
+    ORDER BY events DESC
+  `;
+
+  const params = withAppStreamParams({});
+  const [[summary], [byErrorType], [byPollResult]] = await Promise.all([
+    client.query({ query, params }),
+    client.query({ query: byErrorTypeQuery, params }),
+    client.query({ query: byPollResultQuery, params })
+  ]);
+
+  const s = summary[0] || {};
+  return {
+    days,
+    totalFailed: parseInt(s.failed_count) || 0,
+    failedUsers: parseInt(s.failed_users) || 0,
+    totalPolls: parseInt(s.total_polls) || 0,
+    totalUsers: parseInt(s.total_users) || 0,
+    byErrorType: byErrorType.map(r => ({
+      errorType: r.error_type,
+      events: parseInt(r.events) || 0,
+      users: parseInt(r.users) || 0
+    })),
+    byPollResult: byPollResult.map(r => ({
+      pollResult: r.poll_result,
+      events: parseInt(r.events) || 0,
+      users: parseInt(r.users) || 0
+    }))
+  };
+}
+
 module.exports = {
   getScreenActions,
   getScreenActionDetails,
@@ -1061,6 +1147,7 @@ module.exports = {
   getAllActionTypes,
   testConnection,
   getAcquisitionCounts,
+  getRecordingValidationFailures,
   // Web analytics
   getWebOverview,
   getWebPages,

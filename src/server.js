@@ -495,6 +495,43 @@ app.get('/api/ga4/engagement', async (req, res) => {
   }
 });
 
+// Onboarding funnel - first_open → signup → tutorial → first recording
+app.get('/api/ga4/onboarding-funnel', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const platform = req.query.platform || 'all';
+    const data = await ga4.getOnboardingFunnel({ days, platform });
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching onboarding funnel:', error);
+    res.status(500).json({ error: 'Failed to fetch onboarding funnel' });
+  }
+});
+
+// Recording validation failures (recording_poll_failed by error_type/poll_result)
+app.get('/api/ga4/validation-failures', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const data = await bigquery.getRecordingValidationFailures(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching validation failures:', error);
+    res.status(500).json({ error: 'Failed to fetch validation failures' });
+  }
+});
+
+// Onboarding funnel split by platform
+app.get('/api/ga4/onboarding-funnel/by-platform', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const data = await ga4.getPlatformFunnel({ days });
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching platform funnel:', error);
+    res.status(500).json({ error: 'Failed to fetch platform funnel' });
+  }
+});
+
 // GA4 Debug endpoint - check server logs for output
 app.get('/api/ga4/debug', async (req, res) => {
   try {

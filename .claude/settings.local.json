@@ -18,7 +18,9 @@
       "Bash(vercel curl *)",
       "Bash(vercel logs *)",
       "Bash(vercel env *)",
-      "Bash(npx --yes npm-check-updates)"
+      "Bash(npx --yes npm-check-updates)",
+      "Bash(cp /tmp/fta.js /Users/tiago/Documents/personal/xracing-dashboard/_fta.js)",
+      "Bash(node _fta.js)"
     ],
     "deny": [],
     "ask": []

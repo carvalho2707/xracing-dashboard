@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Onboarding Funnel - xracing dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0D1117">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="xracing">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        fontFamily: { sans: ['Inter', 'sans-serif'] },
+        colors: { racing: {
+          red: '#E53935', dark: '#0D1117', darker: '#010409',
+          card: '#161B22', border: '#30363D', text: '#C9D1D9', muted: '#8B949E'
+        } }
+      } }
+    }
+  </script>
+  <style>
+    body { background: linear-gradient(135deg, #0D1117 0%, #010409 100%); min-height: 100vh; }
+    .glass-card { background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(48, 54, 61, 0.5); }
+    .tier-card { background: linear-gradient(145deg, rgba(22, 27, 34, 0.9), rgba(13, 17, 23, 0.9)); border: 1px solid rgba(48, 54, 61, 0.6); }
+    .tier-header { border-bottom: 1px solid rgba(48, 54, 61, 0.5); }
+    .metric-card { background: rgba(22, 27, 34, 0.6); border: 1px solid rgba(48, 54, 61, 0.4); }
+    .badge { font-size: 10px; letter-spacing: 0.05em; }
+    .source-bar { height: 10px; background: rgba(48, 54, 61, 0.3); border-radius: 4px; overflow: hidden; }
+    .source-bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+    .step-source { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; color: #6B7280; }
+    .pos { color: #34D399; }
+    .neg { color: #F87171; }
+    .warn { color: #FBBF24; }
+    table.compact { width: 100%; border-collapse: collapse; }
+    table.compact th, table.compact td { padding: 8px 10px; font-size: 13px; border-bottom: 1px solid rgba(48,54,61,0.4); }
+    table.compact th { text-align: left; color: #8B949E; font-weight: 500; }
+    table.compact td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .platform-tab { padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid rgba(48,54,61,0.6); background: rgba(22,27,34,0.6); color: #C9D1D9; }
+    .platform-tab.active { background: rgba(229, 57, 53, 0.15); border-color: rgba(229, 57, 53, 0.5); color: #fff; }
+  </style>
+</head>
+<body class="font-sans text-racing-text">
+  <button id="sidebarToggle" class="sidebar-toggle">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header"><a href="/"><img src="/logo_red.svg" alt="xracing" class="h-8 w-auto"></a></div>
+    <nav class="sidebar-nav">
+      <a href="/"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg><span>Home</span></a>
+      <a href="/live.html"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z"/></svg><span>Live</span></a>
+      <a href="/analytics.html"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg><span>Analytics</span></a>
+      <a href="/insights.html"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg><span>Insights</span></a>
+      <a href="/onboarding-funnel.html" class="active"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M5 8h14l-2 12H7L5 8zm5 4v6m4-6v6"/></svg><span>Onboarding</span></a>
+      <a href="/kpis.html"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><span>KPIs</span></a>
+      <a href="/feed-telemetry.html"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h16"/></svg><span>Feed Telemetry</span></a>
+      <a href="/tables.html"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Tables</span></a>
+      <a href="/user-timeline.html"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>User Timeline</span></a>
+      <a href="/screen-analysis.html"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg><span>Screen Analysis</span></a>
+      <a href="/web-analytics.html"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg><span>Web Analytics</span></a>
+    </nav>
+    <div class="sidebar-footer">xracing dashboard</div>
+  </aside>
+
+  <div class="main-content">
+    <header class="page-header">
+      <div class="page-header-content">
+        <div class="flex items-center gap-4 flex-wrap">
+          <h1 class="page-title">Onboarding Funnel</h1>
+          <select id="daysSelect" class="bg-racing-card border border-racing-border text-sm rounded-lg px-3 py-1">
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+          <div class="flex gap-1" id="platformTabs">
+            <button class="platform-tab active" data-platform="all">All</button>
+            <button class="platform-tab" data-platform="Android">Android</button>
+            <button class="platform-tab" data-platform="iOS">iOS</button>
+            <button class="platform-tab" data-platform="web">Web</button>
+          </div>
+          <span class="badge text-racing-muted px-2 py-1 bg-racing-card rounded uppercase">first-time user activation</span>
+        </div>
+        <button onclick="refreshData()" class="px-4 py-2 bg-racing-card hover:bg-racing-border text-sm rounded-lg transition-colors">Refresh</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div id="loading" class="flex items-center justify-center py-20">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-racing-red"></div>
+      </div>
+
+      <div id="dashboard" class="hidden space-y-8">
+
+        <!-- ============== HEADLINE STATS ============== -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="metric-card rounded-xl p-4">
+            <div class="text-xs text-racing-muted uppercase tracking-wide">App Opens</div>
+            <div class="text-2xl font-bold text-white mt-1" id="statFirstOpen">—</div>
+            <div class="text-xs text-racing-muted mt-1">first_open</div>
+          </div>
+          <div class="metric-card rounded-xl p-4">
+            <div class="text-xs text-racing-muted uppercase tracking-wide">Signups</div>
+            <div class="text-2xl font-bold text-white mt-1" id="statSignup">—</div>
+            <div class="text-xs text-racing-muted mt-1" id="statSignupPct">—</div>
+          </div>
+          <div class="metric-card rounded-xl p-4">
+            <div class="text-xs text-racing-muted uppercase tracking-wide">Recorded</div>
+            <div class="text-2xl font-bold text-white mt-1" id="statRecorded">—</div>
+            <div class="text-xs text-racing-muted mt-1" id="statRecordedPct">—</div>
+          </div>
+          <div class="metric-card rounded-xl p-4">
+            <div class="text-xs text-racing-muted uppercase tracking-wide">Uninstalls</div>
+            <div class="text-2xl font-bold mt-1 neg" id="statUninstalls">—</div>
+            <div class="text-xs text-racing-muted mt-1" id="statUninstallsPct">—</div>
+          </div>
+        </section>
+
+        <!-- ============== MAIN FUNNEL ============== -->
+        <section class="tier-card rounded-xl overflow-hidden">
+          <div class="tier-header px-4 md:px-6 py-3 md:py-4 flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2 md:gap-3">
+              <span class="badge bg-racing-red/20 text-racing-red px-2 py-1 rounded font-semibold uppercase">Funnel</span>
+              <h2 class="text-base md:text-lg font-semibold text-white">First-Open → First Recording</h2>
+            </div>
+            <span class="text-xs text-racing-muted">unique users per step (GA4)</span>
+          </div>
+          <div class="p-4 md:p-6 space-y-4">
+            <div id="funnelSteps" class="space-y-3"></div>
+            <p class="text-xs text-racing-muted">
+              <span class="warn">Step-over-step &gt;100%?</span> Means users reach that step without firing the previous event — usually a missing client log
+              (e.g. Apple/Google sign-in not firing <code>sign_up</code>).
+            </p>
+          </div>
+        </section>
+
+        <!-- ============== PLATFORM SPLIT ============== -->
+        <section class="tier-card rounded-xl overflow-hidden">
+          <div class="tier-header px-4 md:px-6 py-3 md:py-4">
+            <h2 class="text-base md:text-lg font-semibold text-white">Activation by Platform</h2>
+            <p class="text-xs text-racing-muted">Same funnel, broken out per platform. Wide gaps point to platform-specific friction.</p>
+          </div>
+          <div class="p-4 md:p-6 overflow-x-auto">
+            <table class="compact" id="platformTable">
+              <thead>
+                <tr>
+                  <th>Platform</th>
+                  <th class="num">Opens</th>
+                  <th class="num">Signups</th>
+                  <th class="num">Tutorial</th>
+                  <th class="num">Rec started</th>
+                  <th class="num">Rec completed</th>
+                  <th class="num">Open → Signup</th>
+                  <th class="num">Open → Recorded</th>
+                  <th class="num">Uninstalls</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============== VALIDATION FAILURES ============== -->
+        <section class="tier-card rounded-xl overflow-hidden">
+          <div class="tier-header px-4 md:px-6 py-3 md:py-4">
+            <div class="flex items-center gap-2 md:gap-3">
+              <span class="badge bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded font-semibold uppercase">why recordings fail</span>
+              <h2 class="text-base md:text-lg font-semibold text-white">Recording Validation Failures</h2>
+            </div>
+            <p class="text-xs text-racing-muted mt-1">From <code>recording_poll_failed</code> events (BigQuery). Explains the validation_status≠0 first recordings.</p>
+          </div>
+          <div class="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <div class="text-sm text-racing-muted mb-2">By error_type</div>
+              <table class="compact" id="errorTypeTable">
+                <thead><tr><th>Error type</th><th class="num">Events</th><th class="num">Users</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div>
+              <div class="text-sm text-racing-muted mb-2">Headline</div>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between"><span class="text-racing-muted">Failed polls</span><span class="text-white font-medium" id="vfFailed">—</span></div>
+                <div class="flex justify-between"><span class="text-racing-muted">Affected users</span><span class="text-white font-medium" id="vfUsers">—</span></div>
+                <div class="flex justify-between"><span class="text-racing-muted">Total polls</span><span class="text-white font-medium" id="vfTotal">—</span></div>
+                <div class="flex justify-between"><span class="text-racing-muted">Failure rate</span><span class="warn font-medium" id="vfRate">—</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/shared.js"></script>
+  <script src="/js/onboarding-funnel.js"></script>
+</body>
+</html>

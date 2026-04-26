@@ -5,3 +5,4 @@ node_modules/
 /credentials/
 .vercel
 /.env.production
+/.env.prod.tmp

@@ -725,6 +725,151 @@ async function getScreenActionDetails(screenName, limit = 100) {
   };
 }
 
+// =====================================================================
+// Onboarding funnel — first_open → signup → tutorial → first recording
+// All inputs come from events that already exist in GA4 (no client work).
+// =====================================================================
+
+const FUNNEL_EVENT_NAMES = [
+  'first_open',
+  'sign_up',
+  'login',
+  'tutorial_complete',
+  'recording_start_attempt',
+  'recording_started',
+  'recording_completed',
+  'app_remove'
+];
+
+const FUNNEL_SCREEN_NAMES = [
+  'welcome',
+  'sign_up',
+  'login',
+  'complete_profile',
+  'onboarding',
+  'home_feed'
+];
+
+function combineFilters(filters) {
+  const cleaned = filters.filter(Boolean);
+  if (cleaned.length === 0) return null;
+  if (cleaned.length === 1) return cleaned[0];
+  return { andGroup: { expressions: cleaned } };
+}
+
+function platformFilter(platform) {
+  if (!platform || platform === 'all') return null;
+  return {
+    filter: {
+      fieldName: 'platform',
+      stringFilter: { matchType: 'EXACT', value: platform }
+    }
+  };
+}
+
+function inListFilter(fieldName, values) {
+  return { filter: { fieldName, inListFilter: { values } } };
+}
+
+// Onboarding funnel — counts users for each event/screen step.
+// Returns parallel arrays the frontend can render as a step funnel.
+async function getOnboardingFunnel({ days = 30, platform = 'all' } = {}) {
+  const client = getClient();
+  const dateRanges = [{ startDate: `${days}daysAgo`, endDate: 'today' }];
+  const streamFilter = getProdFilter();
+  const platFilter = platformFilter(platform);
+
+  // Event-based counts (totalUsers per eventName)
+  const eventReq = {
+    property: getPropertyId(),
+    dateRanges,
+    dimensions: [{ name: 'eventName' }],
+    metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }],
+    dimensionFilter: combineFilters([
+      streamFilter,
+      platFilter,
+      inListFilter('eventName', FUNNEL_EVENT_NAMES)
+    ])
+  };
+
+  // Screen-based counts (totalUsers per unifiedScreenName)
+  const screenReq = {
+    property: getPropertyId(),
+    dateRanges,
+    dimensions: [{ name: 'unifiedScreenName' }],
+    metrics: [{ name: 'totalUsers' }, { name: 'screenPageViews' }],
+    dimensionFilter: combineFilters([
+      streamFilter,
+      platFilter,
+      inListFilter('unifiedScreenName', FUNNEL_SCREEN_NAMES)
+    ])
+  };
+
+  const [[eventRes], [screenRes]] = await Promise.all([
+    client.runReport(eventReq),
+    client.runReport(screenReq)
+  ]);
+
+  const events = {};
+  (eventRes.rows || []).forEach(row => {
+    events[row.dimensionValues[0].value] = {
+      users: parseInt(row.metricValues[0].value) || 0,
+      count: parseInt(row.metricValues[1].value) || 0
+    };
+  });
+
+  const screens = {};
+  (screenRes.rows || []).forEach(row => {
+    screens[row.dimensionValues[0].value] = {
+      users: parseInt(row.metricValues[0].value) || 0,
+      views: parseInt(row.metricValues[1].value) || 0
+    };
+  });
+
+  const ev = (n) => events[n]?.users || 0;
+  const sc = (n) => screens[n]?.users || 0;
+
+  // Steps in funnel order. Each is a real GA4 source so missing client
+  // instrumentation can't be hidden behind a derived metric.
+  const steps = [
+    { key: 'first_open',         label: 'App opened',           source: 'event:first_open',                users: ev('first_open') },
+    { key: 'welcome',            label: 'Welcome screen',       source: 'screen:welcome',                  users: sc('welcome') },
+    { key: 'sign_up_screen',     label: 'Signup screen viewed', source: 'screen:sign_up',                  users: sc('sign_up') },
+    { key: 'sign_up',            label: 'Signed up',            source: 'event:sign_up',                   users: ev('sign_up') },
+    { key: 'complete_profile',   label: 'Completed profile',    source: 'screen:complete_profile',         users: sc('complete_profile') },
+    { key: 'tutorial_complete',  label: 'Tutorial completed',   source: 'event:tutorial_complete',         users: ev('tutorial_complete') },
+    { key: 'recording_started',  label: 'Recording started',    source: 'event:recording_started',         users: ev('recording_started') },
+    { key: 'recording_completed',label: 'Recording completed',  source: 'event:recording_completed',       users: ev('recording_completed') }
+  ];
+
+  // Conversion vs first step + step-over-step
+  const top = steps[0].users || 0;
+  let prev = top;
+  steps.forEach(s => {
+    s.pctOfTop = top > 0 ? Math.round((s.users / top) * 1000) / 10 : 0;
+    s.pctOfPrev = prev > 0 ? Math.round((s.users / prev) * 1000) / 10 : 0;
+    prev = s.users;
+  });
+
+  return {
+    days,
+    platform,
+    steps,
+    uninstalls: ev('app_remove'),
+    raw: { events, screens }
+  };
+}
+
+// Per-platform funnel — runs the funnel for each platform we care about
+// so the dashboard can split activation by Android / iOS / web.
+async function getPlatformFunnel({ days = 30 } = {}) {
+  const platforms = ['Android', 'iOS', 'web'];
+  const results = await Promise.all(
+    platforms.map(p => getOnboardingFunnel({ days, platform: p }))
+  );
+  return platforms.map((p, i) => ({ platform: p, ...results[i] }));
+}
+
 module.exports = {
   getOverviewStats,
   getActiveUserMetrics,
@@ -741,5 +886,7 @@ module.exports = {
   debugTest,
   getUserEvents,
   getScreenActions,
-  getScreenActionDetails
+  getScreenActionDetails,
+  getOnboardingFunnel,
+  getPlatformFunnel
 };
