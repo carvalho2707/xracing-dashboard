@@ -915,6 +915,17 @@ app.get('/api/feed-telemetry/discovery-daily', async (req, res) => {
   }
 });
 
+app.get('/api/feed-telemetry/by-cohort', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 7;
+    const data = await queries.getFeedTelemetryByCohort(days);
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching feed telemetry by cohort:', error);
+    res.status(500).json({ error: 'Failed to fetch feed telemetry by cohort' });
+  }
+});
+
 // ============================================
 // Insights API Routes (deeper product metrics)
 // ============================================

@@ -122,6 +122,44 @@ async function loadSourcePerformance() {
   }).join('');
 }
 
+const COHORT_LABELS = {
+  brand_new: 'Brand new',
+  low_context: 'Low context',
+  active: 'Active',
+  unknown: 'Unknown',
+};
+
+const COHORT_PILL_CLASSES = {
+  brand_new: 'bg-emerald-500/20 text-emerald-400',
+  low_context: 'bg-yellow-500/20 text-yellow-400',
+  active: 'bg-blue-500/20 text-blue-400',
+  unknown: 'bg-slate-500/20 text-slate-400',
+};
+
+async function loadCohortBreakdown() {
+  const data = await fetchData(`feed-telemetry/by-cohort?days=${currentDays()}`);
+  const body = document.getElementById('cohortBody');
+  if (!data || data.length === 0) {
+    body.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-racing-muted">No data yet</td></tr>`;
+    return;
+  }
+  body.innerHTML = data.map(r => {
+    const label = COHORT_LABELS[r.user_state] || r.user_state;
+    const pillClass = COHORT_PILL_CLASSES[r.user_state] || 'bg-slate-500/20 text-slate-400';
+    const followRate = r.d1_follow_through_rate == null ? '—' : `${r.d1_follow_through_rate}%`;
+    return `
+      <tr>
+        <td class="py-3 pr-4"><span class="${pillClass} px-2 py-1 rounded text-xs uppercase font-semibold">${label}</span></td>
+        <td class="text-right py-3 pr-4 text-white font-medium">${formatNumber(+r.impressions)}</td>
+        <td class="text-right py-3 pr-4 text-white">${formatNumber(+r.unique_viewers)}</td>
+        <td class="text-right py-3 pr-4 text-white">${formatNumber(+r.d1_impressions)}</td>
+        <td class="text-right py-3 pr-4 text-white">${formatNumber(+r.d1_follow_through)}</td>
+        <td class="text-right py-3 text-white font-medium">${followRate}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
 async function loadDiscoveryChart() {
   const data = await fetchData(`feed-telemetry/discovery-daily?days=14`);
   const ctx = document.getElementById('discoveryChart').getContext('2d');
@@ -179,6 +217,7 @@ async function loadAll() {
       loadSourceChart(),
       loadDailyChart(),
       loadSourcePerformance(),
+      loadCohortBreakdown(),
       loadDiscoveryChart(),
     ]);
   } finally {

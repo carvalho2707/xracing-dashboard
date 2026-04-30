@@ -1159,6 +1159,68 @@ const queries = {
     return result.rows;
   },
 
+  // Cohort breakdown of feed engagement, keyed on the `user_state` snapshot we now
+  // capture per impression. Lets us answer: did the cold-start fix actually surface
+  // suggestions to BRAND_NEW users, and do they convert at a different rate than
+  // ACTIVE users? Empty buckets are still returned so the dashboard renders 0s
+  // instead of an empty table when a cohort has no impressions in the window.
+  async getFeedTelemetryByCohort(days = 7) {
+    const result = await db.query(
+      `
+      WITH params AS (
+        SELECT NOW() - ($1::int || ' days')::interval AS since
+      ),
+      cohorts(user_state) AS (
+        VALUES ('brand_new'), ('low_context'), ('active'), ('unknown')
+      ),
+      impr AS (
+        SELECT user_state, user_id, item_type, item_id, shown_at
+        FROM feed_impressions, params
+        WHERE shown_at >= since
+      ),
+      per_cohort AS (
+        SELECT user_state,
+               COUNT(*)                                                                AS impressions,
+               COUNT(DISTINCT user_id)                                                 AS unique_viewers,
+               COUNT(*) FILTER (WHERE item_type = 'driver_suggestion')                 AS d1_impressions
+        FROM impr
+        GROUP BY user_state
+      ),
+      converted AS (
+        SELECT i.user_state, COUNT(*) AS d1_follow_through
+        FROM impr i
+        JOIN user_relationships ur
+          ON ur.user_id = i.user_id
+         AND ur.target_user_id = i.item_id
+         AND ur.relationship_type = 'following'
+         AND ur.status = 'active'
+         AND ur.created_at BETWEEN i.shown_at AND i.shown_at + INTERVAL '24 hours'
+        WHERE i.item_type = 'driver_suggestion'
+        GROUP BY i.user_state
+      )
+      SELECT c.user_state,
+             COALESCE(p.impressions,         0)::bigint AS impressions,
+             COALESCE(p.unique_viewers,      0)::bigint AS unique_viewers,
+             COALESCE(p.d1_impressions,      0)::bigint AS d1_impressions,
+             COALESCE(cv.d1_follow_through,  0)::bigint AS d1_follow_through,
+             CASE WHEN COALESCE(p.d1_impressions, 0) > 0
+                  THEN ROUND(100.0 * COALESCE(cv.d1_follow_through, 0) / p.d1_impressions, 1)
+                  ELSE NULL END AS d1_follow_through_rate
+      FROM cohorts c
+      LEFT JOIN per_cohort p  USING (user_state)
+      LEFT JOIN converted  cv USING (user_state)
+      ORDER BY CASE c.user_state
+                 WHEN 'brand_new'   THEN 1
+                 WHEN 'low_context' THEN 2
+                 WHEN 'active'      THEN 3
+                 ELSE 4
+               END
+      `,
+      [days],
+    );
+    return result.rows;
+  },
+
   // ============================================
   // INSIGHTS - Deeper product metrics
   // ============================================
