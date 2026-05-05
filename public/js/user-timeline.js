@@ -37,7 +37,7 @@ function getEventCategory(label) {
     auth: ['LOGIN', 'SIGN_UP', 'LOGOUT', 'AUTH', 'REGISTER'],
     social: ['LIKE', 'COMMENT', 'FOLLOW', 'SHARE', 'PROFILE'],
     navigation: ['SCREEN_VIEW', 'TAB', 'CLICK', 'TAP', 'VIEW', 'OPEN', 'CLOSE'],
-    app: ['APP_LAUNCH', 'APP_FOREGROUND', 'APP_BACKGROUND', 'APP_CLOSE', 'FIRST_OPEN']
+    app: ['APP_LAUNCH', 'APP_FOREGROUND', 'APP_BACKGROUND', 'APP_BACKGROUNDED', 'APP_CLOSE', 'FIRST_OPEN']
   };
 
   for (const [category, patterns] of Object.entries(categories)) {

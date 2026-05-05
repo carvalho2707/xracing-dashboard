@@ -19,7 +19,7 @@ This document describes the analytics implementation in the main xracing app, us
 |-------|-----|------------|
 | App Launch | `APP_LAUNCH` | - |
 | App Foreground | `APP_FOREGROUND` | - |
-| App Background | `APP_BACKGROUND` | - |
+| App Backgrounded | `APP_BACKGROUNDED` | - |
 | App Close | `APP_CLOSE` | - |
 
 ### Authentication

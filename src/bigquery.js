@@ -238,7 +238,7 @@ async function getScreenActions(days = 30, userId = null, excludeOwners = false)
     }
 
     // Skip system events that aren't real user actions
-    if (['user_engagement', 'session_start', 'first_visit', 'app_remove', 'app_background', 'app_foreground'].includes(eventName)) {
+    if (['user_engagement', 'session_start', 'first_visit', 'app_remove', 'app_background', 'app_backgrounded', 'app_foreground'].includes(eventName)) {
       return;
     }
 
@@ -331,7 +331,7 @@ async function getScreenActionDetails(screenName, days = 30, userId = null, excl
     }
 
     // Skip system events that aren't real user actions
-    if (['user_engagement', 'session_start', 'first_visit', 'app_remove', 'app_background', 'app_foreground'].includes(eventName)) {
+    if (['user_engagement', 'session_start', 'first_visit', 'app_remove', 'app_background', 'app_backgrounded', 'app_foreground'].includes(eventName)) {
       return;
     }
 
