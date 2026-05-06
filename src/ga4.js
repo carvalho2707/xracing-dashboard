@@ -771,6 +771,23 @@ function inListFilter(fieldName, values) {
   return { filter: { fieldName, inListFilter: { values } } };
 }
 
+function notInListFilter(fieldName, values) {
+  if (!values || values.length === 0) return null;
+  return {
+    notExpression: {
+      filter: { fieldName, inListFilter: { values } }
+    }
+  };
+}
+
+// Best-effort owner exclusion in GA4 reports. The userId dimension is only
+// populated post-signup, so first_open and pre-signup steps are essentially
+// untouched by this filter — but anything with userId set will be excluded.
+const { OWNER_USER_IDS } = require('./owners');
+function ownerExclusionFilter() {
+  return notInListFilter('userId', OWNER_USER_IDS);
+}
+
 // Onboarding funnel — counts users for each event/screen step.
 // Returns parallel arrays the frontend can render as a step funnel.
 async function getOnboardingFunnel({ days = 30, platform = 'all' } = {}) {
@@ -778,6 +795,8 @@ async function getOnboardingFunnel({ days = 30, platform = 'all' } = {}) {
   const dateRanges = [{ startDate: `${days}daysAgo`, endDate: 'today' }];
   const streamFilter = getProdFilter();
   const platFilter = platformFilter(platform);
+
+  const ownerFilter = ownerExclusionFilter();
 
   // Event-based counts (totalUsers per eventName)
   const eventReq = {
@@ -788,6 +807,7 @@ async function getOnboardingFunnel({ days = 30, platform = 'all' } = {}) {
     dimensionFilter: combineFilters([
       streamFilter,
       platFilter,
+      ownerFilter,
       inListFilter('eventName', FUNNEL_EVENT_NAMES)
     ])
   };
@@ -801,6 +821,7 @@ async function getOnboardingFunnel({ days = 30, platform = 'all' } = {}) {
     dimensionFilter: combineFilters([
       streamFilter,
       platFilter,
+      ownerFilter,
       inListFilter('unifiedScreenName', FUNNEL_SCREEN_NAMES)
     ])
   };

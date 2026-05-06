@@ -9,6 +9,7 @@ const {
   getWebStreamIds,
   getGrowthStreamIds
 } = require('./analytics-streams');
+const { OWNER_USER_IDS } = require('./owners');
 
 let bigqueryClient = null;
 
@@ -161,13 +162,6 @@ async function buildGrowthTableQuery(client, days) {
 
   return baseQuery;
 }
-
-// Owner user IDs to exclude from analytics
-const OWNER_USER_IDS = [
-  'hZMCPNFAZddzS7bwqgzb91VOysx2',
-  'ZT87DvPwt3NnWtIlJGmwXRINIvX2',
-  'Kw1RU3ufAAcYlmGgMyWACbn6t6U2',
-];
 
 // Get screen actions with full action_type detail (last 30 days)
 async function getScreenActions(days = 30, userId = null, excludeOwners = false) {
@@ -482,8 +476,12 @@ async function buildWebTableQuery(client, days, streamFilter = true) {
   const todaySuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const intradayTable = `events_intraday_${todaySuffix}`;
   const streamIn = WEB_STREAM_IDS.map(id => `'${id}'`).join(', ');
-  const streamCondition = streamFilter ? `AND stream_id IN (${streamIn})` : '';
-  const streamConditionOnly = streamFilter ? `WHERE stream_id IN (${streamIn})` : '';
+  const ownerIdsList = OWNER_USER_IDS.map((id) => `'${id}'`).join(', ');
+  // Exclude internal/team users. Use NULL-tolerant form because most web
+  // visitors are anonymous and have user_id = NULL.
+  const ownerExclusion = `AND (user_id IS NULL OR user_id NOT IN (${ownerIdsList}))`;
+  const streamCondition = (streamFilter ? `AND stream_id IN (${streamIn})` : '') + ` ${ownerExclusion}`;
+  const streamConditionOnly = (streamFilter ? `WHERE stream_id IN (${streamIn}) ${ownerExclusion}` : `WHERE TRUE ${ownerExclusion}`);
 
   // Check if intraday table exists
   const hasIntraday = await tableExists(client, intradayTable);
@@ -1033,19 +1031,23 @@ async function getAcquisitionCounts(days = 30) {
   const tableQuery = await buildAppTableQuery(client, days);
   if (!tableQuery) return { first_open: 0, sign_up: 0 };
 
+  // Best-effort owner exclusion. Pre-signup events typically have user_id IS NULL,
+  // so the IS NULL branch keeps them; only post-signup events with a matching
+  // user_id are dropped. The funnel top of `first_open` is therefore not perfectly
+  // owner-free, but this is the best GA4's user_id field allows.
   const query = `
     WITH all_events AS (
       ${tableQuery}
     )
     SELECT
-      COUNTIF(event_name = 'first_open') AS first_open,
-      COUNTIF(event_name = 'sign_up') AS sign_up
+      COUNTIF(event_name = 'first_open' AND (user_id IS NULL OR user_id NOT IN UNNEST(@excludedUsers))) AS first_open,
+      COUNTIF(event_name = 'sign_up' AND (user_id IS NULL OR user_id NOT IN UNNEST(@excludedUsers))) AS sign_up
     FROM all_events
   `;
 
   const [rows] = await client.query({
     query,
-    params: withAppStreamParams({})
+    params: withAppStreamParams({ excludedUsers: OWNER_USER_IDS })
   });
   const r = rows[0] || {};
   return {
@@ -1062,6 +1064,10 @@ async function getRecordingValidationFailures(days = 30) {
   const tableQuery = await buildAppTableQuery(client, days);
   if (!tableQuery) return { totalFailed: 0, totalPolls: 0, byErrorType: [], byPollResult: [] };
 
+  // Owner exclusion: validation failures are post-signup events, so user_id should
+  // generally be set. Use NULL-tolerant exclusion for safety.
+  const ownerFilter = `AND (user_id IS NULL OR user_id NOT IN UNNEST(@excludedUsers))`;
+
   const query = `
     WITH polls AS (
       SELECT
@@ -1071,6 +1077,7 @@ async function getRecordingValidationFailures(days = 30) {
         user_pseudo_id
       FROM (${tableQuery})
       WHERE event_name IN ('recording_poll_failed', 'recording_poll_completed')
+        ${ownerFilter}
     )
     SELECT
       COUNTIF(event_name = 'recording_poll_failed') AS failed_count,
@@ -1086,6 +1093,7 @@ async function getRecordingValidationFailures(days = 30) {
         user_pseudo_id
       FROM (${tableQuery})
       WHERE event_name = 'recording_poll_failed'
+        ${ownerFilter}
     )
     SELECT
       COALESCE(error_type, '(null)') AS error_type,
@@ -1103,6 +1111,7 @@ async function getRecordingValidationFailures(days = 30) {
         user_pseudo_id
       FROM (${tableQuery})
       WHERE event_name = 'recording_poll_failed'
+        ${ownerFilter}
     )
     SELECT
       COALESCE(poll_result, '(null)') AS poll_result,
@@ -1113,7 +1122,7 @@ async function getRecordingValidationFailures(days = 30) {
     ORDER BY events DESC
   `;
 
-  const params = withAppStreamParams({});
+  const params = withAppStreamParams({ excludedUsers: OWNER_USER_IDS });
   const [[summary], [byErrorType], [byPollResult]] = await Promise.all([
     client.query({ query, params }),
     client.query({ query: byErrorTypeQuery, params }),

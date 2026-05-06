@@ -1,4 +1,13 @@
 const db = require('./db');
+const { OWNER_IDS_SQL_LIST } = require('./owners');
+
+// Pre-built SQL fragments to exclude internal/team accounts from insights queries.
+// Inlined as constants (not parameterized) because the IDs are static config.
+const EXCLUDE_OWNERS_DRIVER = `AND driver_id NOT IN (${OWNER_IDS_SQL_LIST})`;
+const EXCLUDE_OWNERS_R_DRIVER = `AND r.driver_id NOT IN (${OWNER_IDS_SQL_LIST})`;
+const EXCLUDE_OWNERS_USER = `AND id NOT IN (${OWNER_IDS_SQL_LIST})`;
+const EXCLUDE_OWNERS_U_ID = `AND u.id NOT IN (${OWNER_IDS_SQL_LIST})`;
+const EXCLUDE_OWNERS_USER_ID_COL = `AND user_id NOT IN (${OWNER_IDS_SQL_LIST})`;
 
 const queries = {
   // Live recordings count (status = 0 is LIVE, 1 = UPLOADING, 2 = ENDED today)
@@ -1237,6 +1246,7 @@ const queries = {
         FROM users u
         LEFT JOIN recordings r ON r.driver_id = u.id
         WHERE u.created_at >= NOW() - ($1::int || ' days')::interval
+          ${EXCLUDE_OWNERS_U_ID}
         GROUP BY u.id, u.created_at
       )
       SELECT
@@ -1267,6 +1277,7 @@ const queries = {
           ROW_NUMBER() OVER (PARTITION BY driver_id ORDER BY created_at) AS rn
         FROM recordings
         WHERE deleted_at IS NULL
+          ${EXCLUDE_OWNERS_DRIVER}
       ),
       pairs AS (
         SELECT
@@ -1303,6 +1314,7 @@ const queries = {
         SELECT DISTINCT driver_id AS user_id
         FROM recordings
         WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL '30 days'
+          ${EXCLUDE_OWNERS_DRIVER}
       ),
       flags AS (
         SELECT
@@ -1316,6 +1328,7 @@ const queries = {
           (u.id IN (SELECT DISTINCT driver_id FROM media WHERE driver_id IS NOT NULL)) AS f_media
         FROM users u
         WHERE u.created_at <= NOW() - INTERVAL '30 days'
+          ${EXCLUDE_OWNERS_U_ID}
       )
       SELECT feature, adopters, retained_adopters, retention_adopters, non_adopters, retained_non, retention_non,
              (retention_adopters - retention_non) AS lift_pts
@@ -1379,6 +1392,7 @@ const queries = {
           SUM(total_views) OVER () AS total_views_sum
         FROM recordings
         WHERE deleted_at IS NULL AND total_views > 0
+          ${EXCLUDE_OWNERS_DRIVER}
       )
       SELECT
         MAX(total_count)::int AS recordings_with_views,
@@ -1409,6 +1423,7 @@ const queries = {
       FROM recordings
       WHERE deleted_at IS NULL
         AND created_at >= NOW() - INTERVAL '12 months'
+        ${EXCLUDE_OWNERS_DRIVER}
       GROUP BY DATE_TRUNC('month', created_at)
       ORDER BY month
     `);
@@ -1422,6 +1437,7 @@ const queries = {
         SELECT track_id, COUNT(*) AS rec_count
         FROM recordings
         WHERE deleted_at IS NULL AND track_id IS NOT NULL
+          ${EXCLUDE_OWNERS_DRIVER}
         GROUP BY track_id
       ),
       ranked AS (
@@ -1457,6 +1473,7 @@ const queries = {
           SUM(total_views)::bigint AS total_views
         FROM recordings
         WHERE deleted_at IS NULL
+          ${EXCLUDE_OWNERS_DRIVER}
         GROUP BY driver_id
       )
       SELECT
@@ -1473,6 +1490,7 @@ const queries = {
       WHERE u.follower_count >= 5
         AND rs.recordings >= 3
         AND rs.total_views > 0
+        ${EXCLUDE_OWNERS_U_ID}
       ORDER BY views_per_follower DESC NULLS LAST
       LIMIT $1
       `,
@@ -1496,6 +1514,7 @@ const queries = {
         COUNT(*)::bigint AS impressions
       FROM feed_impressions
       WHERE shown_at >= NOW() - ($1::int || ' days')::interval
+        ${EXCLUDE_OWNERS_USER_ID_COL}
       GROUP BY bucket, source
       ORDER BY bucket, impressions DESC
       `,
@@ -1513,12 +1532,14 @@ const queries = {
         SELECT location_country AS country, COUNT(DISTINCT driver_id) AS unique_drivers
         FROM recordings
         WHERE deleted_at IS NULL AND location_country IS NOT NULL
+          ${EXCLUDE_OWNERS_DRIVER}
         GROUP BY location_country
       ),
       country_recs AS (
         SELECT location_country AS country, COUNT(*) AS recordings
         FROM recordings
         WHERE deleted_at IS NULL AND location_country IS NOT NULL
+          ${EXCLUDE_OWNERS_DRIVER}
         GROUP BY location_country
       ),
       country_recent AS (
@@ -1527,6 +1548,7 @@ const queries = {
         WHERE deleted_at IS NULL
           AND location_country IS NOT NULL
           AND created_at >= NOW() - INTERVAL '30 days'
+          ${EXCLUDE_OWNERS_DRIVER}
         GROUP BY location_country
       )
       SELECT
@@ -1558,6 +1580,7 @@ const queries = {
         WHERE deleted_at IS NULL
           AND created_at >= NOW() - ($1::int || ' days')::interval
           AND created_at <= NOW() - INTERVAL '7 days'
+          ${EXCLUDE_OWNERS_DRIVER}
       ),
       engaged AS (
         SELECT
@@ -1604,6 +1627,7 @@ const queries = {
       WHERE version IS NOT NULL
         AND source IS NULL
         AND created_at >= NOW() - INTERVAL '180 days'
+        ${EXCLUDE_OWNERS_DRIVER}
       ORDER BY version DESC
       `,
     );
@@ -1669,6 +1693,7 @@ const queries = {
         AND d.delta_ms BETWEEN 50 AND 5000
         AND r.created_at >= NOW() - ($1::int || ' days')::interval
         AND ($2::text IS NULL OR r.version = $2::text)
+        ${EXCLUDE_OWNERS_R_DRIVER}
       GROUP BY r.id, r.version, r.created_at
       HAVING COUNT(d.delta_ms) >= 30
       ORDER BY r.created_at DESC
