@@ -1022,6 +1022,26 @@ app.get('/api/insights/geo-opportunity', async (req, res) => {
   }
 });
 
+app.get('/api/insights/gps-delivery-rate', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const version = req.query.version && req.query.version !== 'all' ? req.query.version : null;
+    res.json(await queries.getGpsDeliveryRate({ days, version }));
+  } catch (error) {
+    console.error('Error fetching GPS delivery rate:', error);
+    res.status(500).json({ error: 'Failed to fetch GPS delivery rate' });
+  }
+});
+
+app.get('/api/insights/recording-app-versions', async (req, res) => {
+  try {
+    res.json(await queries.getRecordingAppVersions());
+  } catch (error) {
+    console.error('Error fetching recording app versions:', error);
+    res.status(500).json({ error: 'Failed to fetch recording app versions' });
+  }
+});
+
 app.get('/api/insights/creator-pmf', async (req, res) => {
   try {
     const days = parseInt(req.query.days) || 90;

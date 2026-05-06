@@ -1,6 +1,6 @@
 // Insights page - deeper product metrics
 
-let ttsrChart, lpvChart;
+let ttsrChart, lpvChart, gpsHistChart, gpsTrendChart;
 
 function getDays() {
   return parseInt(document.getElementById('daysSelect').value) || 30;
@@ -276,11 +276,126 @@ async function loadGeo() {
 }
 
 // ============================================
+// 11. GPS delivery rate
+// ============================================
+async function loadGpsVersions() {
+  const versions = await fetchData('insights/recording-app-versions');
+  const sel = document.getElementById('gpsVersionSelect');
+  if (!sel) return;
+  // Preserve current selection across refreshes
+  const current = sel.value;
+  sel.innerHTML = '<option value="all">All versions</option>' +
+    (versions || []).map((v) => `<option value="${v}">${v}</option>`).join('');
+  if (current && [...sel.options].some((o) => o.value === current)) {
+    sel.value = current;
+  }
+}
+
+function bucketHz(hz) {
+  // Round-down to nearest integer Hz, capped at 10
+  if (hz == null) return null;
+  if (hz >= 10) return 10;
+  return Math.max(1, Math.floor(hz));
+}
+
+async function loadGpsDeliveryRate() {
+  const days = getDays();
+  const version = document.getElementById('gpsVersionSelect')?.value || 'all';
+  const rows = await fetchData(`insights/gps-delivery-rate?days=${days}&version=${encodeURIComponent(version)}`);
+  const list = Array.isArray(rows) ? rows : [];
+
+  // Summary tiles
+  document.getElementById('gpsCount').textContent = formatNumber(list.length);
+  if (list.length === 0) {
+    document.getElementById('gpsMedianHz').textContent = '—';
+    document.getElementById('gpsPctAbove5').textContent = '—';
+  } else {
+    const hzValues = list.map((r) => parseFloat(r.delivered_hz)).filter((n) => Number.isFinite(n));
+    hzValues.sort((a, b) => a - b);
+    const median = hzValues[Math.floor(hzValues.length / 2)];
+    const above5 = hzValues.filter((h) => h >= 5).length;
+    document.getElementById('gpsMedianHz').textContent = `${median.toFixed(1)} Hz`;
+    document.getElementById('gpsPctAbove5').textContent = `${((100 * above5) / hzValues.length).toFixed(1)}%`;
+  }
+
+  // Histogram: buckets 1–10 Hz
+  const buckets = {};
+  for (let i = 1; i <= 10; i++) buckets[i] = 0;
+  list.forEach((r) => {
+    const b = bucketHz(parseFloat(r.delivered_hz));
+    if (b != null) buckets[b]++;
+  });
+  const histLabels = Object.keys(buckets).map((b) => (b === '10' ? '10+' : `${b}–${+b + 1}`));
+  const histData = Object.values(buckets);
+  const histCtx = document.getElementById('gpsHistChart').getContext('2d');
+  if (gpsHistChart) gpsHistChart.destroy();
+  gpsHistChart = new Chart(histCtx, {
+    type: 'bar',
+    data: {
+      labels: histLabels,
+      datasets: [{ data: histData, backgroundColor: '#E53935', borderRadius: 4 }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: 'rgba(48,54,61,0.3)' }, ticks: { precision: 0 } },
+        x: { grid: { display: false }, title: { display: true, text: 'Hz', color: '#8B949E' } },
+      },
+    },
+  });
+
+  // Trend: median Hz per day
+  const byDay = {};
+  list.forEach((r) => {
+    const day = (r.created_at || '').slice(0, 10);
+    if (!day) return;
+    if (!byDay[day]) byDay[day] = [];
+    const hz = parseFloat(r.delivered_hz);
+    if (Number.isFinite(hz)) byDay[day].push(hz);
+  });
+  const trendDays = Object.keys(byDay).sort();
+  const trendValues = trendDays.map((d) => {
+    const arr = byDay[d].slice().sort((a, b) => a - b);
+    return arr[Math.floor(arr.length / 2)];
+  });
+  const trendCtx = document.getElementById('gpsTrendChart').getContext('2d');
+  if (gpsTrendChart) gpsTrendChart.destroy();
+  gpsTrendChart = new Chart(trendCtx, {
+    type: 'line',
+    data: {
+      labels: trendDays,
+      datasets: [{
+        label: 'Median Hz',
+        data: trendValues,
+        borderColor: '#E53935',
+        backgroundColor: 'rgba(229,57,53,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, suggestedMax: 10, grid: { color: 'rgba(48,54,61,0.3)' } },
+        x: { grid: { display: false } },
+      },
+    },
+  });
+}
+
+// ============================================
 // Refresh
 // ============================================
 async function refreshData() {
   document.getElementById('loading').classList.remove('hidden');
   document.getElementById('dashboard').classList.add('hidden');
+
+  await loadGpsVersions();
 
   await Promise.all([
     loadFunnel(),
@@ -292,7 +407,8 @@ async function refreshData() {
     loadReachSplit(),
     loadAmplify(),
     loadPMF(),
-    loadGeo()
+    loadGeo(),
+    loadGpsDeliveryRate(),
   ]);
 
   document.getElementById('loading').classList.add('hidden');
@@ -301,5 +417,7 @@ async function refreshData() {
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('daysSelect').addEventListener('change', refreshData);
+  // Re-render only the GPS section when the version dropdown changes (cheaper than a full refresh).
+  document.getElementById('gpsVersionSelect')?.addEventListener('change', loadGpsDeliveryRate);
   refreshData();
 });

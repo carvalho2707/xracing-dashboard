@@ -1593,6 +1593,91 @@ const queries = {
     );
     return result.rows[0];
   },
+
+  // Distinct app versions seen in phone-recorded sessions (for the GPS rate filter dropdown).
+  // Limited to last 180 days so retired versions drop out naturally.
+  async getRecordingAppVersions() {
+    const result = await db.query(
+      `
+      SELECT DISTINCT version
+      FROM recordings
+      WHERE version IS NOT NULL
+        AND source IS NULL
+        AND created_at >= NOW() - INTERVAL '180 days'
+      ORDER BY version DESC
+      `,
+    );
+    return result.rows.map((r) => r.version);
+  },
+
+  // Per-recording delivered GPS Hz, computed from timestamp deltas inside the
+  // recording's fastest LAP (lap_type=0). The fastest lap excludes pit detours
+  // and warmup, giving the cleanest steady-state signal.
+  //
+  // Filters:
+  //   - tracks.type = 1 (closed circuits only — point-to-point may include transit)
+  //   - recordings.source IS NULL (phone recordings only, not third-party imports)
+  //   - is_interpolated = FALSE (skip IMU-interpolated points)
+  //   - delta in [50, 5000] ms (drops the LAG NULL and obvious dropouts)
+  //   - sample size >= 30 deltas (otherwise the median is noisy)
+  async getGpsDeliveryRate({ days = 30, version = null } = {}) {
+    const result = await db.query(
+      `
+      WITH fastest_lap AS (
+        SELECT DISTINCT ON (recording_id) recording_id, lap_number
+        FROM laps
+        WHERE lap_type = 0 AND lap_time > 0
+        ORDER BY recording_id, lap_time ASC
+      ),
+      points_in_fastest AS (
+        SELECT p.recording_id, p.timestamp
+        FROM recording_data_points p
+        JOIN fastest_lap f
+          ON f.recording_id = p.recording_id
+         AND f.lap_number = p.lap_number
+        WHERE p.is_interpolated = FALSE
+      ),
+      deltas AS (
+        SELECT
+          recording_id,
+          timestamp - LAG(timestamp) OVER (
+            PARTITION BY recording_id ORDER BY timestamp
+          ) AS delta_ms
+        FROM points_in_fastest
+      )
+      SELECT
+        r.id AS recording_id,
+        r.version,
+        r.created_at,
+        ROUND(
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY d.delta_ms)::numeric,
+          1
+        ) AS median_delta_ms,
+        ROUND(
+          (1000.0 / NULLIF(
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY d.delta_ms),
+            0
+          ))::numeric,
+          1
+        ) AS delivered_hz,
+        COUNT(d.delta_ms)::int AS sample_size
+      FROM recordings r
+      JOIN tracks t ON t.id = r.track_id
+      JOIN deltas d ON d.recording_id = r.id
+      WHERE t.type = 1
+        AND r.source IS NULL
+        AND d.delta_ms BETWEEN 50 AND 5000
+        AND r.created_at >= NOW() - ($1::int || ' days')::interval
+        AND ($2::text IS NULL OR r.version = $2::text)
+      GROUP BY r.id, r.version, r.created_at
+      HAVING COUNT(d.delta_ms) >= 30
+      ORDER BY r.created_at DESC
+      LIMIT 5000
+      `,
+      [days, version],
+    );
+    return result.rows;
+  },
 };
 
 module.exports = queries;

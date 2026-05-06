@@ -96,6 +96,48 @@
 
       <div id="dashboard" class="hidden space-y-8">
 
+        <!-- ============== GPS DELIVERY RATE ============== -->
+        <section class="tier-card rounded-xl overflow-hidden">
+          <div class="tier-header px-4 md:px-6 py-3 md:py-4 flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2 md:gap-3">
+              <span class="badge bg-racing-red/20 text-racing-red px-2 py-1 rounded font-semibold uppercase">GPS</span>
+              <h2 class="text-base md:text-lg font-semibold text-white">GPS delivered Hz (per recording, fastest lap)</h2>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="gpsVersionSelect" class="bg-racing-card border border-racing-border text-sm rounded-lg px-3 py-1">
+                <option value="all">All versions</option>
+              </select>
+            </div>
+          </div>
+          <div class="p-4 md:p-6 space-y-4">
+            <p class="text-xs text-racing-muted">
+              Median timestamp delta inside the fastest LAP (closed tracks, phone recordings only). Excludes pit detours, dropouts, and IMU-interpolated points.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div class="metric-highlight rounded-xl p-4">
+                <p class="text-racing-muted text-xs mb-1">Recordings analyzed</p>
+                <p id="gpsCount" class="text-2xl font-bold text-white">-</p>
+              </div>
+              <div class="metric-card rounded-xl p-4">
+                <p class="text-racing-muted text-xs mb-1">Median delivered Hz</p>
+                <p id="gpsMedianHz" class="text-2xl font-bold text-white">-</p>
+              </div>
+              <div class="metric-card rounded-xl p-4">
+                <p class="text-racing-muted text-xs mb-1">% recordings ≥ 5 Hz</p>
+                <p id="gpsPctAbove5" class="text-2xl font-bold text-white">-</p>
+              </div>
+            </div>
+            <div>
+              <p class="text-xs text-racing-muted mb-2">Distribution (Hz buckets)</p>
+              <div class="chart-container"><canvas id="gpsHistChart"></canvas></div>
+            </div>
+            <div>
+              <p class="text-xs text-racing-muted mb-2">Trend over time (median Hz per day)</p>
+              <div class="chart-container"><canvas id="gpsTrendChart"></canvas></div>
+            </div>
+          </div>
+        </section>
+
         <!-- ============== ACQUISITION FUNNEL ============== -->
         <section class="tier-card rounded-xl overflow-hidden">
           <div class="tier-header px-4 md:px-6 py-3 md:py-4 flex items-center justify-between flex-wrap gap-2">
