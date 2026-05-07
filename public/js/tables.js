@@ -1,5 +1,32 @@
 // Tables page specific JavaScript
 
+// Copy an id to clipboard with brief visual feedback on the button
+async function copyId(id, btn) {
+  try {
+    await navigator.clipboard.writeText(id);
+    const original = btn.innerHTML;
+    btn.innerHTML = '<span class="text-green-400 text-[10px]">Copied!</span>';
+    setTimeout(() => { btn.innerHTML = original; }, 1000);
+  } catch (err) {
+    console.error('Failed to copy id:', err);
+  }
+}
+
+const COPY_ICON_SVG = `
+  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+  </svg>
+`;
+
+function copyIdButton(id) {
+  if (!id) return '';
+  const safe = String(id).replace(/'/g, "\\'");
+  return `<button type="button" onclick="copyId('${safe}', this)" title="Copy ID: ${id}"
+    class="text-racing-muted hover:text-white p-1 rounded hover:bg-racing-border/40 flex-shrink-0">
+    ${COPY_ICON_SVG}
+  </button>`;
+}
+
 // Update top tracks table
 async function updateTopTracks() {
   const data = await fetchData('top-tracks');
@@ -186,7 +213,10 @@ async function updateRecentActivity() {
           <p class="text-racing-muted text-xs truncate font-mono">${duration} · ${distance}</p>
         </div>
       </div>
-      <span class="text-racing-muted text-xs whitespace-nowrap ml-2">${formatDateTime(activity.created_at)}</span>
+      <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+        <span class="text-racing-muted text-xs whitespace-nowrap">${formatDateTime(activity.created_at)}</span>
+        ${copyIdButton(activity.id)}
+      </div>
     </div>
   `;
   }).join('');
@@ -234,7 +264,10 @@ async function updateRecentUsers() {
           <p class="text-racing-muted text-xs truncate">${user.email || '-'}</p>
         </div>
       </div>
-      <span class="text-racing-muted text-xs whitespace-nowrap ml-2">${formatDateTime(user.created_at)}</span>
+      <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+        <span class="text-racing-muted text-xs whitespace-nowrap">${formatDateTime(user.created_at)}</span>
+        ${copyIdButton(user.id)}
+      </div>
     </div>
   `).join('');
 }
@@ -260,7 +293,10 @@ async function updateRecentTracks() {
           </p>
         </div>
       </div>
-      <span class="text-racing-muted text-xs whitespace-nowrap ml-2">${formatDateTime(track.created_at)}</span>
+      <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+        <span class="text-racing-muted text-xs whitespace-nowrap">${formatDateTime(track.created_at)}</span>
+        ${copyIdButton(track.id)}
+      </div>
     </div>
   `).join('');
 }

@@ -20,7 +20,8 @@
       "Bash(vercel env *)",
       "Bash(npx --yes npm-check-updates)",
       "Bash(cp /tmp/fta.js /Users/tiago/Documents/personal/xracing-dashboard/_fta.js)",
-      "Bash(node _fta.js)"
+      "Bash(node _fta.js)",
+      "Bash(APP_ENV=PROD node scripts/investigate-today.js)"
     ],
     "deny": [],
     "ask": []
